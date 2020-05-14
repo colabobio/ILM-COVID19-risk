@@ -46,8 +46,6 @@ cooking_folder <- file.path(main_folder, "boarding", "bake")
 if (!dir.exists(cooking_folder)) dir.create(cooking_folder)
 plotting_folder <- file.path(main_folder, "boarding", "plots")
 if (!dir.exists(plotting_folder)) dir.create(plotting_folder)
-code_folder <- file.path(main_folder, "boarding", "code")
-if (!dir.exists(code_folder)) dir.create(code_folder)
 
 pop_size <- 762
 inf0 <- 1
@@ -127,7 +125,6 @@ case_data %>%
        rmeasure = rmeas,
        dmeasure = dmeas,
        globals = extra,
-       cdir = code_folder,
        statenames = c("S", "I", "R"),
        partrans = parameter_trans(
          log = c("Beta", "Gamma", "Sigma"),
