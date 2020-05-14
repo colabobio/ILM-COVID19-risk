@@ -5,10 +5,7 @@ output:
     df_print: paged
 ---
 
-Following the example of the outbreak of influenza in a boarding school for boys in England:
-
-https://kingaa.github.io/short-course/stochsim/stochsim.html#the-boarding-school-flu-outbreak
-https://kingaa.github.io/clim-dis/mif/mif.html#applying-if2-to-the-boarding-school-influenza-outbreak
+Fits the ILM parameters using contact data from GAMA.
 
 ```{r}
 library(doRNG)
@@ -58,8 +55,6 @@ ggplot(data=subset(case_data, time <= max_time), aes(x=time, y=cases, group=1)) 
 ggsave(file.path(plotting_folder, "0-observed_data.pdf"))
 ```
 
-
-
 ```{r}
 # Parameters
 
@@ -70,17 +65,18 @@ time_step <- 1/12
 
 num_sims <- 100
 
-free_params <- c("Beta", "Gamma", "Rho")
+free_param_names <- c("a0", "a1", "b0", "b1")
 free_param_box <- rbind(
-  Beta = c(0.1, 5),
-  Gamma = c(0, 3),
-  Rho = c(0.5, 1)
+  a0 = c(0, 5),
+  a1 = c(0, 5),
+  b0 = c(0, 5),
+  b1 = c(0, 5)
 )
 
-fixed_params <- c("N", "S0", "I0", "R0", "Sigma")
-fixed_param_values <- c(N = pop_size, S0 = pop_size - inf0, I0 = inf0, R0 = 0, Sigma = 0.3324675)
+fixed_param_names <- c("pop", "S_0", "E_0", "I_0", "R_0", "gamma", "sigma", "rho")
+fixed_param_values <- c(pop=20000, S_0=0.9995, E_0=0.0004, I_0=0.0001, R_0=0, gamma=1/4, sigma=1/17, rho=0.99)
 
-all_param_names <- c(free_params, fixed_params)
+all_param_names <- c(free_param_names, fixed_param_names)
 
 # Random seeds, keep unchanged to ensure reproducibilty of results
 test_mle_seed <- 0998468235L
@@ -98,22 +94,40 @@ mcap_plik_seed <- 290860873
 # https://kingaa.github.io/pomp/vignettes/C_API.html
 
 sir_step <- Csnippet("
-  Beta = 
+  double beta, foi, dw, seas;
+  double rate[3], trans[3];
 
+  beta = R0 * gamma;
 
-  double dSI = rbinom(S, 1 - exp(-Beta*I/N*dt));
-  double dIR = rbinom(I, 1 - exp(-Gamma*dt));
-  double dRR2 = rbinom(R, 1 - exp(-Sigma*dt));
+  // expected force of infection
+  foi = beta * seas * I/pop;
 
-  S -= dSI;
-  I += dSI - dIR;
-  R += dIR - dRR2;
+  rate[0] = foi;      // stochastic force of infection
+  rate[1] = sigma;    // rate of ending of latent stage
+  rate[2] = gamma;    // recovery
+
+  // transitions between classes
+  reulermultinom(1, S, &rate[0], dt, &trans[0]);
+  reulermultinom(1, E, &rate[1], dt, &trans[1]);
+  reulermultinom(1, I, &rate[2], dt, &trans[2]);
+
+  S += -trans[0];
+  E += trans[0] - trans[1];
+  I += trans[1] - trans[2];
+  R = pop - S - E - I;
+
+  C += trans[2]; // true incidence
 ")
 
 sir_init <- Csnippet("
-  S = nearbyint(S0);
-  I = nearbyint(I0);
-  R = nearbyint(R0);
+  double m = pop/(S_0 + E_0 + I_0 + R_0);
+
+  S = nearbyint(m*S_0);
+  E = nearbyint(m*E_0);
+  I = nearbyint(m*I_0);
+  R = nearbyint(m*R_0);
+
+  C = 0;
 ")
 
 rmeas <- Csnippet("
@@ -165,11 +179,11 @@ case_data %>%
        globals = extra,
        cdir = code_folder,
        cfile = file_name,
-       statenames = c("S", "I", "R"),
-       partrans = parameter_trans(
-         log = c("Beta", "Gamma", "Sigma"),
-         logit = c("Rho")),
-       paramnames = c(free_params, fixed_params),
+       accumvars=c("C"),
+       statenames=c("S", "E", "I", "R", "C"),
+       partrans=parameter_trans(
+         log=c("a0", "a1", "b0", "b1")),
+       paramnames = c(free_param_names, fixed_param_names),
        #compile=FALSE,
        verbose = TRUE
   ) -> model
@@ -189,12 +203,12 @@ num_filter_iter <- 50    # Number of filtering iterations to perform
 num_particles <- 2000    # Number of particles to use in filtering.
 num_replicates <- 10     # Number of replicated particle filters at each point estimate
 
-perturb_sizes <- list(Beta=0.02, Gamma=0.02, Rho=0.02)
+perturb_sizes <- list(a0=0.02, a1=0.02, b0=0.02, b1=0.02)
 cool_frac <- 0.5
 cool_type <- "geometric"
 
 # Variables to use in the scatterplot matrix showing the result of the IF search
-pair_vars <- ~loglik+Beta+Gamma+Rho
+pair_vars <- ~loglik+a0+a1+b0+b1
 ```
 
 ```{r}
@@ -407,9 +421,9 @@ mcap_cool_frac <- 0.5
 mcap_cool_frac_lastif <- 0.1
 
 # Lambda closer to 1 increases the curvature of the likelihood approximation
-mcap_lambda <- c(Beta=0.75, Gamma=0.75, Rho=0.75)
+mcap_lambda <- c(a0=0.75, a1=0.75, b0=0.75, b1=0.75)
 
-mcap_ngrid <- c(Beta=1000, Gamma=1000, Rho=1000)
+mcap_ngrid <- c(a0=1000, a1=1000, b0=1000, b1=1000)
 ```
 
 ```{r}
