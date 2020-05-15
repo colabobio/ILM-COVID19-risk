@@ -141,23 +141,39 @@ dmeas <- Csnippet("
 extra <- Csnippet("
 double calc_beta(double td, double a0, double a1, double b0, double b1) {
   static int *indices = NULL;
-  static double *values = NULL;
-  static int max_t = 0
+  static double *contacts = NULL;
+  static int max_t = 0;
+  static int num_v = 0;
+
   if (indices == NULL) {
-/*
-    int numberArray[16];
-    int i;
+    FILE *file;
 
-    FILE *myFile;
-    myFile = fopen(\"numbers.txt\", \"r\");  
-    for (i = 0; i < 16; i++) {
-        fscanf(myFile, \"%d,\", &numberArray[i]);
+    file = fopen(\"indices\", \"r\");
+
+    int idx;
+    while (fscanf(file, \"%d\", &idx) > 0) max_t++;
+    rewind(file);
+
+    indices = (int *)malloc(sizeof(int)*max_t);
+    int i = 0;
+    while (fscanf(file, \"%d\", &idx) > 0) {
+      indices[i] = idx;
+      i++;
     }
+    fclose(file);
 
-    fclose(myFile);
- 
-    numbers = &numberArray;
-*/
+    file = fopen(\"contacts\", \"r\");
+    float val;
+    while (fscanf(file, \"%f\", &val) > 0) num_v++;
+    rewind(file);
+
+    contacts = (double *)malloc(sizeof(double)*num_v);
+    i = 0;
+    while (fscanf(file, \"%f\", &val) > 0) {
+      contacts[i] = val;
+      i++;
+    }
+    fclose(file);
   }
 
   double beta = 0;
@@ -166,12 +182,12 @@ double calc_beta(double td, double a0, double a1, double b0, double b1) {
   if (max_t < t) t = max_t;
   int idx = indices[t];
   int ninf = 0;
-  while (-1 < values[idx]) {
-    int ncont = (int) values[++idx];
-    double y = values[++idx];
+  while (-1 < contacts[idx]) {
+    int ncont = (int) contacts[idx++];
+    double y = contacts[idx++];
     for (int i = 0; i < ncont; i++) {
-      double x = values[++idx];
-      p = (a0 + a1 * x) * (b0 + b1 * y);
+      double x = contacts[idx++];
+      double p = (a0 + a1 * x) * (b0 + b1 * y);
       beta += 1 - exp(-p);
     }
     ninf++;

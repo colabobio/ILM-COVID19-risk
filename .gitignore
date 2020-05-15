@@ -3,3 +3,4 @@
 **/*.rds
 **/.ipynb_checkpoints
 **/.Rhistory
+**/*.dylib

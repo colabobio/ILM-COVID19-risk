@@ -27,13 +27,13 @@ int load_data() {
     fclose(file);
 
     file = fopen("contacts", "r");
-    double val;
-    while (fscanf(file, "%lf", &val) > 0) num_v++;
+    float val;
+    while (fscanf(file, "%f", &val) > 0) num_v++;
     rewind(file);
 
     contacts = (double *)malloc(sizeof(double)*num_v);
     i = 0;
-    while (fscanf(file, "%lf", &val) > 0) {
+    while (fscanf(file, "%f", &val) > 0) {
       contacts[i] = val;
       i++;
     }
@@ -46,30 +46,17 @@ int load_data() {
 }
 
 void print_data() {
-    // for t in range(0, len(indices)):
-    //    idx = indices[t]
-    //    if idx < 0: continue
-    //    print("=======> time", t)
-    //    while -1 < values[idx]:
-    //        ncont = int(values[idx])
-    //        idx += 1
-    //        inf = values[idx]
-    //        idx += 1       
-    //        print(inf, end =" ")
-    //        susc = values[idx:idx+ncont]
-    //        idx += ncont
-    //        print(susc)
-
   for (int t = 0; t < max_t; t++) {
     printf("=======> time %d\n", t);
     int idx = indices[t];
     while (-1 < contacts[idx]) {
-      int ncont = (int) contacts[++idx];
-      double y = contacts[++idx];
-      printf("%f [", y);
+      int ncont = (int) contacts[idx++];
+      double y = contacts[idx++];
+      printf("%.1f [", y);
       for (int i = 0; i < ncont; i++) {
-        double x = contacts[++idx];
-        printf("%f,", x);
+        double x = contacts[idx++];
+        printf("%.1f", x);
+        if (i < ncont - 1) printf(", ");
       }
       printf("]\n");
     }
