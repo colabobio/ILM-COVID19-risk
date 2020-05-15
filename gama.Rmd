@@ -46,11 +46,11 @@ file_name <- "snippets"
 ```{r}
 # Observed data
 csv_table <- read.csv(file.path(main_folder, "case_counts.csv"))
-case_data <- data.frame(time = csv_table$Time, cases = csv_table$Count)
+case_data <- data.frame(day = csv_table$Time, cases = csv_table$Count)
 head(case_data)
 
-max_time <- max(case_data$time)
-ggplot(data=subset(case_data, time <= max_time), aes(x=time, y=cases, group=1)) + geom_line()
+max_day <- max(case_data$day)
+ggplot(data=subset(case_data, day <= max_day), aes(x=day, y=cases, group=1)) + geom_line()
 
 ggsave(file.path(plotting_folder, "0-observed_data.pdf"))
 ```
@@ -61,20 +61,20 @@ ggsave(file.path(plotting_folder, "0-observed_data.pdf"))
 pop_size <- 9205
 inf0 <- 2
 
-time_step <- 1/12
+time_step <- 1/4
 
 num_sims <- 100
 
 free_param_names <- c("a0", "a1", "b0", "b1")
 free_param_box <- rbind(
-  a0 = c(0, 5),
-  a1 = c(0, 5),
-  b0 = c(0, 5),
-  b1 = c(0, 5)
+  a0 = c(0, 1),
+  a1 = c(0, 20),
+  b0 = c(0, 1),
+  b1 = c(0, 20)
 )
 
 fixed_param_names <- c("pop", "S_0", "E_0", "I_0", "R_0", "gamma", "sigma", "rho")
-fixed_param_values <- c(pop=20000, S_0=0.9995, E_0=0.0004, I_0=0.0001, R_0=0, gamma=1/4, sigma=1/17, rho=0.99)
+fixed_param_values <- c(pop=pop_size, S_0=1-inf0/pop_size, E_0=0, I_0=inf0/pop_size, R_0=0, gamma=1/6.69, sigma=1/19.21, rho=1.0)
 
 all_param_names <- c(free_param_names, fixed_param_names)
 
@@ -88,19 +88,19 @@ mcap_plik_seed <- 290860873
 ```
 
 ```{r}
-# Csnippets defining the SIR model
+# Csnippets defining the SEIR model
 
 # pomp C API:
 # https://kingaa.github.io/pomp/vignettes/C_API.html
 
 sir_step <- Csnippet("
-  double beta, foi, dw, seas;
+  double beta, foi;
   double rate[3], trans[3];
 
-  beta = R0 * gamma;
+  beta = calc_beta(t, a0, a1, b0, b1);
 
   // expected force of infection
-  foi = beta * seas * I/pop;
+  foi = beta * I/pop;
 
   rate[0] = foi;      // stochastic force of infection
   rate[1] = sigma;    // rate of ending of latent stage
@@ -116,7 +116,7 @@ sir_step <- Csnippet("
   I += trans[1] - trans[2];
   R = pop - S - E - I;
 
-  C += trans[2]; // true incidence
+  C += trans[1] - trans[2]; // true incidence
 ")
 
 sir_init <- Csnippet("
@@ -131,20 +131,20 @@ sir_init <- Csnippet("
 ")
 
 rmeas <- Csnippet("
-  B = rpois(Rho * R + tol());
+  cases = rbinom(C, rho);
 ")
 
 dmeas <- Csnippet("
-  lik = dpois(B, Rho * R + tol(), give_log);
+  lik = dbinom(cases, C, rho, give_log);
 ")
 
 extra <- Csnippet("
-double tol() {
-  static double val = 1e-6;
-
+double calc_beta(double td, double a0, double a1, double b0, double b1) {
+  static int *indices = NULL;
+  static double *values = NULL;
+  static int max_t = 0
+  if (indices == NULL) {
 /*
-  static int *numbers = NULL;
-  if (numbers == NULL) {
     int numberArray[16];
     int i;
 
@@ -157,9 +157,35 @@ double tol() {
     fclose(myFile);
  
     numbers = &numberArray;
-  }
 */
+  }
 
+  double beta = 0;
+
+  int t = (int) td;
+  if (max_t < t) t = max_t;
+  int idx = indices[t];
+  int ninf = 0;
+  while (-1 < values[idx]) {
+    int ncont = (int) values[++idx];
+    double y = values[++idx];
+    for (int i = 0; i < ncont; i++) {
+      double x = values[++idx];
+      p = (a0 + a1 * x) * (b0 + b1 * y);
+      beta += 1 - exp(-p);
+    }
+    ninf++;
+  }
+
+  if (0 < ninf) {
+    beta /= ninf;
+  }
+
+  return beta;
+}
+
+double tol() {
+  static double val = 1e-6;
   return val;
 } 
 ")
@@ -304,7 +330,7 @@ theta
 
 model  %>%
   simulate(params=theta, nsim=9, format="data.frame", include.data=TRUE) %>%
-  ggplot(aes(x=day, y=B, group=.id, color=(.id=="data"))) +
+  ggplot(aes(x=day, y=cases, group=.id, color=(.id=="data"))) +
   guides(color=FALSE) +
   geom_line() + facet_wrap(~.id, ncol=2)
 
@@ -325,10 +351,10 @@ model %>%
 # Compare the observed data with the simulated data between the 5th and 95th percentiles
 
 sim_data %>%
-  select(day, .id, B) %>%
+  select(day, .id, cases) %>%
   mutate(data=.id=="data") %>%
   ddply(~day+data, plyr::summarize,
-    p=c(0.05, 0.5, 0.95), q=quantile(B, prob=p, names=FALSE)) %>%
+    p=c(0.05, 0.5, 0.95), q=quantile(cases, prob=p, names=FALSE)) %>%
   mutate(
     p=mapvalues(p, from=c(0.05, 0.5, 0.95), to=c("lo", "med", "hi")),
     data=mapvalues(data, from=c(TRUE, FALSE), to=c("data", "simulation"))
@@ -347,7 +373,7 @@ cumulative_curve <- function(dat, len) {
   total_sum <- 0
   daily_sum <- c()
   for (i in 1:len) {
-    total_sum <- total_sum + dat$B[i]
+    total_sum <- total_sum + dat$cases[i]
     daily_sum <- c(daily_sum, total_sum)
   }
   return(daily_sum)
@@ -357,7 +383,7 @@ median_simulation <- function(sdat, n) {
   all_totals <- c()
   for (i in 1:n) {
     sim <- subset(sdat, .id == i)
-    tot <- sum(sim$B)
+    tot <- sum(sim$cases)
     all_totals <- c(all_totals, tot)
   }
 
