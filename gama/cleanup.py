@@ -8,21 +8,22 @@ in_contacts_file = "contact_data_compact.txt"
 
 data = []
 t = t0 = 0
-c = c0 = 0
+r = r0 = lastr = 0
 with open(in_counts_file, 'r') as f:
     reader = csv.reader(f, dialect="excel")
     next(reader)
     for row in reader:
-    	t = int(row[0])
-    	c = int(row[4])
-    	if t0 < t:
-    		data.append([t0, c0])
-    	t0 = t
-    	c0 = c
-    	if 120 < t:
-    		break
+        t = int(row[0])
+        r = int(row[5]) + int(row[6])
+        if t0 < t:
+            data.append([t0, max(0, r0 - lastr)])
+            lastr = r0
+        t0 = t
+        r0 = r
+        if 120 < t:
+            break
 
-data.append([t0, c0])
+data.append([t0, max(0, r0 - lastr)])
 
 with open(out_counts_file, "w") as f:
     writer = csv.writer(f, dialect="excel")    
