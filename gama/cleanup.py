@@ -3,7 +3,7 @@ import csv
 in_counts_file = "infected_number.txt"
 out_counts_file = "case_counts.csv"
 
-debug_contacts = False
+debug_contacts = True
 in_contacts_file = "contact_data_compact.txt"
 
 data = []
