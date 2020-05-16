@@ -15,3 +15,7 @@ where the first argument is the folder containing the data, and the second the n
 ## Preparing data
 
 The python script parse.py will read in contact and case data from GAMA, and output the corresponding files needed in POMP. It can be run without any arguments. In order to test that the resulting files were properly parsed, the test.sh script can be run.
+
+## Cleaning-up
+
+The IF function in POMP creates bake and stew files that are stored in output/bake. The advantage of keeping those files is that the expensive MLE calculations do not need to be run again when those files are already generated, but if the parameters change, they should be removed to generate new ones. Do that with the clean.sh shell script.
