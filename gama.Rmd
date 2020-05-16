@@ -65,27 +65,23 @@ time_step <- 1/4
 
 num_sims <- 100
 
-#free_param_names <- c("a0", "a1", "b0", "b1")
-#free_param_box <- rbind(
-#  a0 = c(0, 1),
-#  a1 = c(0, 20),
-#  b0 = c(0, 1),
-#  b1 = c(0, 20)
-#)
-
-free_param_names <- c("beta", "gamma")
+free_param_names <- c("a0", "a1", "b0", "b1", "gamma")
 free_param_box <- rbind(
-  beta = c(0, 4),
+  a0 = c(0, 1),
+  a1 = c(0, 20),
+  b0 = c(0, 1),
+  b1 = c(0, 20),
   gamma = c(0, 2)
 )
 
-
-#fixed_param_names <- c("pop", "S_0", "E_0", "I_0", "R_0", "sigma", "gamma", "rho")
-#fixed_param_values <- c(pop=pop_size, S_0=1-exp0/pop_size, E_0=exp0/pop_size, I_0=0, R_0=0, sigma=1/6.69, gamma=1/19.21, rho=1.0)
+#free_param_names <- c("beta", "gamma")
+#free_param_box <- rbind(
+#  beta = c(0, 4),
+#  gamma = c(0, 2)
+#)
 
 fixed_param_names <- c("pop", "S_0", "E_0", "I_0", "R_0", "sigma", "rho")
 fixed_param_values <- c(pop=pop_size, S_0=1-exp0/pop_size, E_0=exp0/pop_size, I_0=0, R_0=0, sigma=1/6.69, rho=1.0)
-
 
 all_param_names <- c(free_param_names, fixed_param_names)
 
@@ -105,11 +101,11 @@ mcap_plik_seed <- 290860873
 # https://kingaa.github.io/pomp/vignettes/C_API.html
 
 sir_step <- Csnippet("
-  //double beta; 
+  double beta; 
   double foi;
   double rate[3], trans[3];
 
-  //beta = calc_beta(t, a0, a1, b0, b1);
+  beta = calc_beta(t, a0, a1, b0, b1);
 
   // expected force of infection
   foi = beta * I/pop;
@@ -127,8 +123,6 @@ sir_step <- Csnippet("
   E += trans[0] - trans[1];
   I += trans[1] - trans[2];
   R = pop - S - E - I;
-
-  //Rprintf(\"%lg = %lg\\n\", t, trans[1]);
 
   C += trans[2];
 ")
@@ -162,7 +156,7 @@ double calc_beta(double td, double a0, double a1, double b0, double b1) {
   if (indices == NULL) {
     FILE *file;
 
-    file = fopen(\"/Users/andres/research/covid/models/ILM-MLE/gama/indices\", \"r\");
+    file = fopen(\"./gama/indices\", \"r\");
 
     int idx;
     while (fscanf(file, \"%d\", &idx) > 0) max_t++;
@@ -176,7 +170,7 @@ double calc_beta(double td, double a0, double a1, double b0, double b1) {
     }
     fclose(file);
 
-    file = fopen(\"/Users/andres/research/covid/models/ILM-MLE/gama/contacts\", \"r\");
+    file = fopen(\"./gama/contacts\", \"r\");
     float val;
     while (fscanf(file, \"%f\", &val) > 0) num_v++;
     rewind(file);
@@ -191,7 +185,7 @@ double calc_beta(double td, double a0, double a1, double b0, double b1) {
   }
 
   double beta = 0;
-
+/*
   int t = (int) td;
   if (max_t < t) t = max_t;
   int idx = indices[t];
@@ -210,8 +204,9 @@ double calc_beta(double td, double a0, double a1, double b0, double b1) {
   if (0 < ninf) {
     beta /= ninf;
   }
-
-  return beta;
+  Rprintf(\"%lg = %lg\\n\", t, beta);
+*/
+  return a0 * a1 * b0 * b1;
 }
 
 double tol() {
@@ -238,8 +233,8 @@ case_data %>%
        accumvars=c("C"),
        statenames=c("S", "E", "I", "R", "C"),
        partrans=parameter_trans(
-         #log=c("a0", "a1", "b0", "b1")),
-         log=c("beta", "gamma")),
+         log=c("a0", "a1", "b0", "b1", "gamma")),
+         #log=c("beta", "gamma")),
        paramnames = c(free_param_names, fixed_param_names),
        #compile=FALSE,
        verbose = TRUE
@@ -256,18 +251,18 @@ plot(model, main="")
 num_test_runs <- 10
 
 num_guesses <- 100       # Number of starting points for the parameter guesses
-num_filter_iter <- 50    # Number of filtering iterations to perform
-num_particles <- 2000    # Number of particles to use in filtering.
-num_replicates <- 10     # Number of replicated particle filters at each point estimate
+num_filter_iter <- 10    # Number of filtering iterations to perform
+num_particles <- 200    # Number of particles to use in filtering.
+num_replicates <- 5     # Number of replicated particle filters at each point estimate
 
-#perturb_sizes <- list(a0=0.02, a1=0.02, b0=0.02, b1=0.02)
-perturb_sizes <- list(beta=0.02, gamma=0.02)
+perturb_sizes <- list(a0=0.02, a1=0.02, b0=0.02, b1=0.02, gamma=0.02)
+#perturb_sizes <- list(beta=0.02, gamma=0.02)
 cool_frac <- 0.5
 cool_type <- "geometric"
 
 # Variables to use in the scatterplot matrix showing the result of the IF search
-#pair_vars <- ~loglik+a0+a1+b0+b1
-pair_vars <- ~loglik+beta+gamma
+pair_vars <- ~loglik+a0+a1+b0+b1+gamma
+#pair_vars <- ~loglik+beta+gamma
 ```
 
 ```{r}

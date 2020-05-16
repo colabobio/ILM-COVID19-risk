@@ -43,6 +43,7 @@ file_name <- "snippets"
 # Observed data
 csv_table <- read.csv(file.path(main_folder, "case_counts.csv"))
 case_data <- data.frame(day = csv_table$Time, cases = csv_table$Count)
+head(case_data)
 
 max_day <- max(case_data$day)
 ggplot(data=subset(case_data, day <= max_day), aes(x=day, y=cases, group=1)) + geom_line()
@@ -53,22 +54,29 @@ ggsave(file.path(plotting_folder, "0-observed_data.pdf"))
 # Parameters
 
 pop_size <- 9205
-inf0 <- 2
+exp0 <- 10
 
 time_step <- 1/4
 
 num_sims <- 100
 
-free_param_names <- c("a0", "a1", "b0", "b1")
+free_param_names <- c("a0", "a1", "b0", "b1", "gamma")
 free_param_box <- rbind(
   a0 = c(0, 1),
   a1 = c(0, 20),
   b0 = c(0, 1),
-  b1 = c(0, 20)
+  b1 = c(0, 20),
+  gamma = c(0, 2)
 )
 
-fixed_param_names <- c("pop", "S_0", "E_0", "I_0", "R_0", "gamma", "sigma", "rho")
-fixed_param_values <- c(pop=pop_size, S_0=1-inf0/pop_size, E_0=0, I_0=inf0/pop_size, R_0=0, gamma=1/6.69, sigma=1/19.21, rho=0.98)
+#free_param_names <- c("beta", "gamma")
+#free_param_box <- rbind(
+#  beta = c(0, 4),
+#  gamma = c(0, 2)
+#)
+
+fixed_param_names <- c("pop", "S_0", "E_0", "I_0", "R_0", "sigma", "rho")
+fixed_param_values <- c(pop=pop_size, S_0=1-exp0/pop_size, E_0=exp0/pop_size, I_0=0, R_0=0, sigma=1/6.69, rho=1.0)
 
 all_param_names <- c(free_param_names, fixed_param_names)
 
@@ -87,11 +95,11 @@ mcap_plik_seed <- 290860873
 # https://kingaa.github.io/pomp/vignettes/C_API.html
 
 sir_step <- Csnippet("
-  double beta, foi;
+  double beta; 
+  double foi;
   double rate[3], trans[3];
 
   beta = calc_beta(t, a0, a1, b0, b1);
-  //beta = 0.1;
 
   // expected force of infection
   foi = beta * I/pop;
@@ -110,7 +118,7 @@ sir_step <- Csnippet("
   I += trans[1] - trans[2];
   R = pop - S - E - I;
 
-  C += trans[1];
+  C += trans[2];
 ")
 
 sir_init <- Csnippet("
@@ -125,11 +133,11 @@ sir_init <- Csnippet("
 ")
 
 rmeas <- Csnippet("
-  cases = rbinom(C, rho);
+  cases = rbinom(I, rho);
 ")
 
 dmeas <- Csnippet("
-  lik = dbinom(cases, C, rho, give_log);
+  lik = dbinom(cases, I, rho, give_log);
 ")
 
 extra <- Csnippet("
@@ -142,7 +150,7 @@ double calc_beta(double td, double a0, double a1, double b0, double b1) {
   if (indices == NULL) {
     FILE *file;
 
-    file = fopen(\"/Users/andres/research/covid/models/ILM-MLE/gama/indices\", \"r\");
+    file = fopen(\"./gama/indices\", \"r\");
 
     int idx;
     while (fscanf(file, \"%d\", &idx) > 0) max_t++;
@@ -156,7 +164,7 @@ double calc_beta(double td, double a0, double a1, double b0, double b1) {
     }
     fclose(file);
 
-    file = fopen(\"/Users/andres/research/covid/models/ILM-MLE/gama/contacts\", \"r\");
+    file = fopen(\"./gama/contacts\", \"r\");
     float val;
     while (fscanf(file, \"%f\", &val) > 0) num_v++;
     rewind(file);
@@ -168,12 +176,14 @@ double calc_beta(double td, double a0, double a1, double b0, double b1) {
       i++;
     }
     fclose(file);
+
+    //Rprintf(\"%d %d\\n\", max_t, num_v);
   }
 
   double beta = 0;
 
   int t = (int) td;
-  if (max_t < t) t = max_t;
+  if (max_t <= t) t = max_t - 1;
   int idx = indices[t];
   int ninf = 0;
   while (-1 < contacts[idx]) {
@@ -190,6 +200,8 @@ double calc_beta(double td, double a0, double a1, double b0, double b1) {
   if (0 < ninf) {
     beta /= ninf;
   }
+
+  //Rprintf(\"%lg = %lg\\n\", td, beta);
 
   return beta;
 }
@@ -217,11 +229,14 @@ case_data %>%
        accumvars=c("C"),
        statenames=c("S", "E", "I", "R", "C"),
        partrans=parameter_trans(
-         log=c("a0", "a1", "b0", "b1")),
+         log=c("a0", "a1", "b0", "b1", "gamma")),
+         #log=c("beta", "gamma")),
        paramnames = c(free_param_names, fixed_param_names),
        #compile=FALSE,
        verbose = TRUE
   ) -> model
+
+plot(model, main="")
 
 # =============================================================================
 # IF parameters, see more details in the manual and tutorial:
@@ -235,12 +250,14 @@ num_filter_iter <- 50    # Number of filtering iterations to perform
 num_particles <- 2000    # Number of particles to use in filtering.
 num_replicates <- 10     # Number of replicated particle filters at each point estimate
 
-perturb_sizes <- list(a0=0.02, a1=0.02, b0=0.02, b1=0.02)
+perturb_sizes <- list(a0=0.02, a1=0.02, b0=0.02, b1=0.02, gamma=0.02)
+#perturb_sizes <- list(beta=0.02, gamma=0.02)
 cool_frac <- 0.5
 cool_type <- "geometric"
 
 # Variables to use in the scatterplot matrix showing the result of the IF search
-pair_vars <- ~loglik+a0+a1+b0+b1
+pair_vars <- ~loglik+a0+a1+b0+b1+gamma
+#pair_vars <- ~loglik+beta+gamma
 
 # =============================================================================
 # Test run from single starting point in parameter space and no replicates
@@ -275,6 +292,7 @@ ggplot(data=melt(traces(mifs_test)),
   theme_bw()
 
 ggsave(file.path(plotting_folder, "1-mle_local_search.pdf"))
+
 
 # =============================================================================
 # Full MLE with multiple starting points for the free parameters
@@ -323,6 +341,7 @@ log_idx <- length(mle_params) - 1
 mle_global <- mle_params[which.max( mle_params[,log_idx] ), ]
 mle_global %>% extract(all_param_names) %>% unlist() -> theta
 write.csv(theta, file=file.path(output_folder, "param_point_estimates.csv"), row.names=TRUE, na="")
+theta
 
 # =============================================================================
 # Running simulations using the MLE parameters
@@ -335,7 +354,8 @@ model  %>%
   guides(color=FALSE) +
   geom_line() + facet_wrap(~.id, ncol=2)
 
-ggsave(file.path(plotting_folder, "3-simulations.pdf"))
+
+ggsave(file.path(plotting_folder, "3-simulations.pdf"))  
 
 # =============================================================================
 # Computing a large number of simulations
@@ -412,160 +432,3 @@ ggplot(df, aes(day)) +
   ylab('Cumulative Number of Cases')
 
 ggsave(file.path(plotting_folder, "4-cumulative_cases.pdf"))
-
-# =============================================================================
-# CALCULATION OF THE CONFIDENCE INTERVAL FOR THE PARAMETERS (OPTIONAL)
-
-# =============================================================================
-# MCAP settings
-
-mcap_confidence <- 0.95  # The desired confidence
-
-# Profile design settings
-mcap_profdes_len <- 15   # Number of subdivisions of the parameter range in the profile
-mcap_nprof <- 10         # Number of starts per profile point
-mcap_replicates <- 5
-mcap_num_particles_pfilt <- 2000
-
-# IF settings to generate the likelihood surface for each parameter
-mcap_num_particles <- 1000
-mcap_num_filter_iter <- 50
-
-mcap_cool_type <- "geometric"
-mcap_cool_frac <- 0.5
-mcap_cool_frac_lastif <- 0.1
-
-# Lambda closer to 1 increases the curvature of the likelihood approximation
-mcap_lambda <- c(a0=0.75, a1=0.75, b0=0.75, b1=0.75)
-
-mcap_ngrid <- c(a0=1000, a1=1000, b0=1000, b1=1000)
-
-# =============================================================================
-# Function to calculate the MCAP CIs 
-
-mcap <- function(lp, parameter, confidence, lambda, Ngrid) {
-  smooth_fit <- loess(lp ~ parameter, span=lambda)
-  parameter_grid <- seq(min(parameter), max(parameter), length.out = Ngrid)
-  smoothed_loglik <- predict(smooth_fit, newdata=parameter_grid)
-  smooth_arg_max <- parameter_grid[which.max(smoothed_loglik)]
-  dist <- abs(parameter - smooth_arg_max)
-  included <- dist < sort(dist)[trunc(lambda*length(dist))]
-  maxdist <- max(dist[included])
-  weight <- rep(0, length(parameter))
-  weight[included] <- (1 - (dist[included]/maxdist)^3)^3
-  quadratic_fit <- lm(lp ~ a + b, weight=weight,
-                      data = data.frame(lp=lp, b=parameter, a=-parameter^2))
-  b <- unname(coef(quadratic_fit)["b"] )
-  a <- unname(coef(quadratic_fit)["a"] )
-  m <- vcov(quadratic_fit)
-  
-  var_b <- m["b", "b"]
-  var_a <- m["a", "a"]
-  cov_ab <- m["a", "b"]
-  
-  se_mc_squared <- (1 / (4 * a^2)) * (var_b - (2 * b/a) * cov_ab + (b^2 / a^2) * var_a)
-  se_stat_squared <- 1/(2*a)
-  se_total_squared <- se_mc_squared + se_stat_squared
-  
-  delta <- qchisq(confidence, df=1) * ( a * se_mc_squared + 0.5)
-  loglik_diff <- max(smoothed_loglik) - smoothed_loglik
-  ci <- range(parameter_grid[loglik_diff < delta])
-  list(lp=lp, parameter=parameter, confidence=confidence,
-       quadratic_fit=quadratic_fit, quadratic_max=b/(2*a),
-       smooth_fit=smooth_fit,
-       fit=data.frame(parameter=parameter_grid,
-                      smoothed=smoothed_loglik,
-                      quadratic=predict(quadratic_fit, list(b = parameter_grid, 
-                                                            a = -parameter_grid^2))),
-       mle=smooth_arg_max, ci=ci, delta=delta,
-       se_stat=sqrt(se_stat_squared), se_mc=sqrt(se_mc_squared), 
-       se=sqrt(se_total_squared)
-  )
-}
-
-# =============================================================================
-# Generates the model for the profile likelihood calculation
-
-plik <- function(pname, pval0, pval1) {
-  registerDoParallel()
-  
-  bake(file=file.path(cooking_folder, paste(pname, "_mcap.rds", sep="")), {  
-    
-    desel <- which(names(mle_params) %in% c("loglik", "loglik.se", pname))
-    mle_params %>% 
-      subset(
-        loglik > max(loglik,na.rm=TRUE) - 20,
-        select=-desel
-      ) %>% 
-      melt(id=NULL) %>% 
-      daply(~variable, function(x)range(x$value)) -> box
-    
-    starts <- profileDesign(pname=seq(pval0, pval1, length=mcap_profdes_len),
-                            lower=box[,1], upper=box[,2],
-                            nprof=mcap_nprof)
-    names(starts) <- sub("pname", pname,names(starts))
-    
-    psizes <- perturb_sizes[names(perturb_sizes) != pname]
-    
-    foreach(params=iter(starts, "row"),
-            .combine=rbind,
-            .packages="pomp",
-            .options.multicore=list(set.seed=TRUE),
-            .options.mpi=list(seed=mcap_plik_seed, chunkSize=1)
-    ) %dopar% {
-      mf <- mif2(model,
-                 params=unlist(params),
-                 Np=mcap_num_particles,
-                 Nmif=mcap_num_filter_iter,
-                 cooling.type=mcap_cool_type,
-                 cooling.fraction.50=mcap_cool_frac,
-                 rw.sd=do.call(rw.sd, psizes)
-      )
-      mf <- mif2(mf, 
-                 Np=mcap_num_particles,
-                 Nmif=mcap_num_filter_iter,
-                 cooling.fraction.50=mcap_cool_frac_lastif)
-      ll <- logmeanexp(replicate(mcap_replicates, 
-                                 logLik(pfilter(mf, Np=mcap_num_particles_pfilt))), se=TRUE)
-      data.frame(as.list(coef(mf)), loglik=ll[1], loglik.se=ll[2])
-    }
-  }) -> pmodel
-  
-  return(pmodel)
-}
-
-# =============================================================================
-# Iterate over all the free parameters in the model to calculate their CIs... may take a while!
-
-par_names <- row.names(free_param_box)
-for (i in 1:nrow(free_param_box)) {
-  name <- par_names[i]  
-  print(sprintf("Calculating CI for %s...", name))
-  
-  row <- free_param_box[i,]
-  mdl <- plik(pname=name, pval0=row[1], pval1=row[2])
-  
-  par_range <- seq(row[1], row[2], length=mcap_profdes_len)
-  log_likelihoods <- c()
-  for (val in par_range) {
-    likelihoods <- subset(mdl, abs(mdl[[name]]-val)<1)$loglik
-    if (length(likelihoods) == 0) next
-    log_likelihoods <- c(log_likelihoods, max(likelihoods))
-  }
-  
-  x <- mcap(log_likelihoods, par_range, mcap_confidence, mcap_lambda[[i]], mcap_ngrid[[i]])
-  if (i == 1) {
-    cis <- data.frame("name" = c(name), "x0" = c(x$ci[1]), "x1" = c(x$ci[2]), stringsAsFactors = FALSE)  
-  } else {
-    cis <- rbind(cis, c(name, x$ci[1], x$ci[2]))  
-  }
-  print(sprintf("%s %0.2f %0.2f", name, x$ci[1], x$ci[2]))
-
-  ggplot(x$fit, aes(parameter, quadratic)) + geom_line() + 
-    geom_vline(xintercept=c(x$ci[1], x$ci[2]), linetype=4, colour='red') +
-    geom_point(data = data.frame('parameters'=par_range, 'loglik'=log_likelihoods), 
-               aes(parameters, log_likelihoods)) 
-  ggsave(file.path(plotting_folder, paste("5-", name, "_ci.pdf", sep="")))
-}
-
-write.csv(cis, file=file.path(output_folder, "param_confidence_intervals.csv"), row.names=FALSE, na="")
