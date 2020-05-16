@@ -432,3 +432,161 @@ ggplot(df, aes(day)) +
   ylab('Cumulative Number of Cases')
 
 ggsave(file.path(plotting_folder, "4-cumulative_cases.pdf"))
+
+# =============================================================================
+# CALCULATION OF THE CONFIDENCE INTERVAL FOR THE PARAMETERS (OPTIONAL)
+# =============================================================================
+
+# =============================================================================
+# MCAP settings
+
+mcap_confidence <- 0.95  # The desired confidence
+
+# Profile design settings
+mcap_profdes_len <- 15   # Number of subdivisions of the parameter range in the profile
+mcap_nprof <- 10         # Number of starts per profile point
+mcap_replicates <- 5
+mcap_num_particles_pfilt <- 2000
+
+# IF settings to generate the likelihood surface for each parameter
+mcap_num_particles <- 1000
+mcap_num_filter_iter <- 50
+
+mcap_cool_type <- "geometric"
+mcap_cool_frac <- 0.5
+mcap_cool_frac_lastif <- 0.1
+
+# Lambda closer to 1 increases the curvature of the likelihood approximation
+mcap_lambda <- c(a0=0.75, a1=0.75, b0=0.75, b1=0.75, gamma=0.75)
+
+mcap_ngrid <- c(a0=1000, a1=1000, b0=1000, b1=1000, gamma=1000)
+
+# =============================================================================
+# Function to calculate the MCAP CIs 
+
+mcap <- function(lp, parameter, confidence, lambda, Ngrid) {
+  smooth_fit <- loess(lp ~ parameter, span=lambda)
+  parameter_grid <- seq(min(parameter), max(parameter), length.out = Ngrid)
+  smoothed_loglik <- predict(smooth_fit, newdata=parameter_grid)
+  smooth_arg_max <- parameter_grid[which.max(smoothed_loglik)]
+  dist <- abs(parameter - smooth_arg_max)
+  included <- dist < sort(dist)[trunc(lambda*length(dist))]
+  maxdist <- max(dist[included])
+  weight <- rep(0, length(parameter))
+  weight[included] <- (1 - (dist[included]/maxdist)^3)^3
+  quadratic_fit <- lm(lp ~ a + b, weight=weight,
+                      data = data.frame(lp=lp, b=parameter, a=-parameter^2))
+  b <- unname(coef(quadratic_fit)["b"] )
+  a <- unname(coef(quadratic_fit)["a"] )
+  m <- vcov(quadratic_fit)
+  
+  var_b <- m["b", "b"]
+  var_a <- m["a", "a"]
+  cov_ab <- m["a", "b"]
+  
+  se_mc_squared <- (1 / (4 * a^2)) * (var_b - (2 * b/a) * cov_ab + (b^2 / a^2) * var_a)
+  se_stat_squared <- 1/(2*a)
+  se_total_squared <- se_mc_squared + se_stat_squared
+  
+  delta <- qchisq(confidence, df=1) * ( a * se_mc_squared + 0.5)
+  loglik_diff <- max(smoothed_loglik) - smoothed_loglik
+  ci <- range(parameter_grid[loglik_diff < delta])
+  list(lp=lp, parameter=parameter, confidence=confidence,
+       quadratic_fit=quadratic_fit, quadratic_max=b/(2*a),
+       smooth_fit=smooth_fit,
+       fit=data.frame(parameter=parameter_grid,
+                      smoothed=smoothed_loglik,
+                      quadratic=predict(quadratic_fit, list(b = parameter_grid, 
+                                                            a = -parameter_grid^2))),
+       mle=smooth_arg_max, ci=ci, delta=delta,
+       se_stat=sqrt(se_stat_squared), se_mc=sqrt(se_mc_squared), 
+       se=sqrt(se_total_squared)
+  )
+}
+
+# =============================================================================
+# Generates the model for the profile likelihood calculation
+
+plik <- function(pname, pval0, pval1) {
+  registerDoParallel()
+  
+  bake(file=file.path(cooking_folder, paste(pname, "_mcap.rds", sep="")), {  
+    
+    desel <- which(names(mle_params) %in% c("loglik", "loglik.se", pname))
+    mle_params %>% 
+      subset(
+        loglik > max(loglik,na.rm=TRUE) - 20,
+        select=-desel
+      ) %>% 
+      melt(id=NULL) %>% 
+      daply(~variable, function(x)range(x$value)) -> box
+    
+    starts <- profileDesign(pname=seq(pval0, pval1, length=mcap_profdes_len),
+                            lower=box[,1], upper=box[,2],
+                            nprof=mcap_nprof)
+    names(starts) <- sub("pname", pname,names(starts))
+    
+    psizes <- perturb_sizes[names(perturb_sizes) != pname]
+    
+    foreach(params=iter(starts, "row"),
+            .combine=rbind,
+            .packages="pomp",
+            .options.multicore=list(set.seed=TRUE),
+            .options.mpi=list(seed=mcap_plik_seed, chunkSize=1)
+    ) %dopar% {
+      mf <- mif2(model,
+                 params=unlist(params),
+                 Np=mcap_num_particles,
+                 Nmif=mcap_num_filter_iter,
+                 cooling.type=mcap_cool_type,
+                 cooling.fraction.50=mcap_cool_frac,
+                 rw.sd=do.call(rw.sd, psizes)
+      )
+      mf <- mif2(mf, 
+                 Np=mcap_num_particles,
+                 Nmif=mcap_num_filter_iter,
+                 cooling.fraction.50=mcap_cool_frac_lastif)
+      ll <- logmeanexp(replicate(mcap_replicates, 
+                                 logLik(pfilter(mf, Np=mcap_num_particles_pfilt))), se=TRUE)
+      data.frame(as.list(coef(mf)), loglik=ll[1], loglik.se=ll[2])
+    }
+  }) -> pmodel
+  
+  return(pmodel)
+}
+
+# =============================================================================
+# Iterate over all the free parameters in the model to calculate their CIs... may take a while!
+
+par_names <- row.names(free_param_box)
+for (i in 1:nrow(free_param_box)) {
+  name <- par_names[i]  
+  print(sprintf("Calculating CI for %s...", name))
+  
+  row <- free_param_box[i,]
+  mdl <- plik(pname=name, pval0=row[1], pval1=row[2])
+  
+  par_range <- seq(row[1], row[2], length=mcap_profdes_len)
+  log_likelihoods <- c()
+  for (val in par_range) {
+    likelihoods <- subset(mdl, abs(mdl[[name]]-val)<1)$loglik
+    if (length(likelihoods) == 0) next
+    log_likelihoods <- c(log_likelihoods, max(likelihoods))
+  }
+  
+  x <- mcap(log_likelihoods, par_range, mcap_confidence, mcap_lambda[[i]], mcap_ngrid[[i]])
+  if (i == 1) {
+    cis <- data.frame("name" = c(name), "x0" = c(x$ci[1]), "x1" = c(x$ci[2]), stringsAsFactors = FALSE)  
+  } else {
+    cis <- rbind(cis, c(name, x$ci[1], x$ci[2]))  
+  }
+  print(sprintf("%s %0.2f %0.2f", name, x$ci[1], x$ci[2]))
+
+  ggplot(x$fit, aes(parameter, quadratic)) + geom_line() + 
+    geom_vline(xintercept=c(x$ci[1], x$ci[2]), linetype=4, colour='red') +
+    geom_point(data = data.frame('parameters'=par_range, 'loglik'=log_likelihoods), 
+               aes(parameters, log_likelihoods)) 
+  ggsave(file.path(plotting_folder, paste("5-", name, "_ci.pdf", sep="")))
+}
+
+write.csv(cis, file=file.path(output_folder, "param_confidence_intervals.csv"), row.names=FALSE, na="")

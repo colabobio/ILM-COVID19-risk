@@ -95,11 +95,6 @@ mcap_plik_seed <- 290860873
 ```
 
 ```{r}
-# Csnippets defining the SEIR model
-
-# pomp C API:
-# https://kingaa.github.io/pomp/vignettes/C_API.html
-
 sir_step <- Csnippet("
   double beta; 
   double foi;
@@ -182,12 +177,14 @@ double calc_beta(double td, double a0, double a1, double b0, double b1) {
       i++;
     }
     fclose(file);
+
+    //Rprintf(\"%d %d\\n\", max_t, num_v);
   }
 
   double beta = 0;
-/*
+
   int t = (int) td;
-  if (max_t < t) t = max_t;
+  if (max_t <= t) t = max_t - 1;
   int idx = indices[t];
   int ninf = 0;
   while (-1 < contacts[idx]) {
@@ -204,9 +201,10 @@ double calc_beta(double td, double a0, double a1, double b0, double b1) {
   if (0 < ninf) {
     beta /= ninf;
   }
-  Rprintf(\"%lg = %lg\\n\", t, beta);
-*/
-  return a0 * a1 * b0 * b1;
+
+  //Rprintf(\"%lg = %lg\\n\", td, beta);
+
+  return beta;
 }
 
 double tol() {
@@ -251,9 +249,9 @@ plot(model, main="")
 num_test_runs <- 10
 
 num_guesses <- 100       # Number of starting points for the parameter guesses
-num_filter_iter <- 10    # Number of filtering iterations to perform
-num_particles <- 200    # Number of particles to use in filtering.
-num_replicates <- 5     # Number of replicated particle filters at each point estimate
+num_filter_iter <- 50    # Number of filtering iterations to perform
+num_particles <- 2000    # Number of particles to use in filtering.
+num_replicates <- 10     # Number of replicated particle filters at each point estimate
 
 perturb_sizes <- list(a0=0.02, a1=0.02, b0=0.02, b1=0.02, gamma=0.02)
 #perturb_sizes <- list(beta=0.02, gamma=0.02)
@@ -475,9 +473,9 @@ mcap_cool_frac <- 0.5
 mcap_cool_frac_lastif <- 0.1
 
 # Lambda closer to 1 increases the curvature of the likelihood approximation
-mcap_lambda <- c(a0=0.75, a1=0.75, b0=0.75, b1=0.75)
+mcap_lambda <- c(a0=0.75, a1=0.75, b0=0.75, b1=0.75, gamma=0.75)
 
-mcap_ngrid <- c(a0=1000, a1=1000, b0=1000, b1=1000)
+mcap_ngrid <- c(a0=1000, a1=1000, b0=1000, b1=1000, gamma=1000)
 ```
 
 ```{r}
