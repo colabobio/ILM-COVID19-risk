@@ -1,6 +1,6 @@
 /* pomp C snippet file: snippets */
-/* Time: 2020-05-15 20:58:11.570 -0400 */
-/* Salt: 43DB94AC8BEB9F1D51E4318E */
+/* Time: 2020-05-15 22:01:51.588 -0400 */
+/* Salt: 827DAC008F7BF24CB9DF31E3 */
 
 #include <pomp.h>
 #include <R_ext/Rdynload.h>
@@ -42,7 +42,7 @@ double calc_beta(double td, double a0, double a1, double b0, double b1) {
     }
     fclose(file);
 
-    Rprintf("%d %d\n", max_t, num_v);
+    //Rprintf("%d %d\n", max_t, num_v);
   }
 
   double beta = 0;
@@ -66,7 +66,7 @@ double calc_beta(double td, double a0, double a1, double b0, double b1) {
     beta /= ninf;
   }
 
-  Rprintf("%lg = %lg\n", td, beta);
+  //Rprintf("%lg = %lg\n", td, beta);
 
   return beta;
 }
