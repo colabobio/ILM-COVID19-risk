@@ -60,12 +60,13 @@ time_step <- 1/4
 
 num_sims <- 100
 
-free_param_names <- c("a0", "a1", "b0", "b1", "gamma")
+free_param_names <- c("a0", "a1", "b0", "b1", "sigma", "gamma")
 free_param_box <- rbind(
   a0 = c(0, 1),
   a1 = c(0, 20),
   b0 = c(0, 1),
   b1 = c(0, 20),
+  sigma = c(0, 2),
   gamma = c(0, 2)
 )
 
@@ -75,8 +76,8 @@ free_param_box <- rbind(
 #  gamma = c(0, 2)
 #)
 
-fixed_param_names <- c("pop", "S_0", "E_0", "I_0", "R_0", "sigma", "rho")
-fixed_param_values <- c(pop=pop_size, S_0=1-exp0/pop_size, E_0=exp0/pop_size, I_0=0, R_0=0, sigma=1/6.69, rho=1.0)
+fixed_param_names <- c("pop", "S_0", "E_0", "I_0", "R_0", "rho")
+fixed_param_values <- c(pop=pop_size, S_0=1-exp0/pop_size, E_0=exp0/pop_size, I_0=0, R_0=0, rho=1.0)
 
 all_param_names <- c(free_param_names, fixed_param_names)
 
@@ -229,7 +230,7 @@ case_data %>%
        accumvars=c("C"),
        statenames=c("S", "E", "I", "R", "C"),
        partrans=parameter_trans(
-         log=c("a0", "a1", "b0", "b1", "gamma")),
+         log=c("a0", "a1", "b0", "b1", "sigma", "gamma")),
          #log=c("beta", "gamma")),
        paramnames = c(free_param_names, fixed_param_names),
        #compile=FALSE,
@@ -246,17 +247,17 @@ plot(model, main="")
 num_test_runs <- 10
 
 num_guesses <- 100       # Number of starting points for the parameter guesses
-num_filter_iter <- 50    # Number of filtering iterations to perform
-num_particles <- 2000    # Number of particles to use in filtering.
-num_replicates <- 10     # Number of replicated particle filters at each point estimate
+num_filter_iter <- 100    # Number of filtering iterations to perform
+num_particles <- 5000    # Number of particles to use in filtering.
+num_replicates <- 50     # Number of replicated particle filters at each point estimate
 
-perturb_sizes <- list(a0=0.02, a1=0.02, b0=0.02, b1=0.02, gamma=0.02)
+perturb_sizes <- list(a0=0.02, a1=0.02, b0=0.02, b1=0.02, sigma=0.02, gamma=0.02)
 #perturb_sizes <- list(beta=0.02, gamma=0.02)
 cool_frac <- 0.5
 cool_type <- "geometric"
 
 # Variables to use in the scatterplot matrix showing the result of the IF search
-pair_vars <- ~loglik+a0+a1+b0+b1+gamma
+pair_vars <- ~loglik+a0+a1+b0+b1+sigma+gamma
 #pair_vars <- ~loglik+beta+gamma
 
 # =============================================================================
@@ -449,17 +450,17 @@ mcap_replicates <- 5
 mcap_num_particles_pfilt <- 2000
 
 # IF settings to generate the likelihood surface for each parameter
-mcap_num_particles <- 1000
-mcap_num_filter_iter <- 50
+mcap_num_particles <- 2000
+mcap_num_filter_iter <- 100
 
 mcap_cool_type <- "geometric"
 mcap_cool_frac <- 0.5
 mcap_cool_frac_lastif <- 0.1
 
 # Lambda closer to 1 increases the curvature of the likelihood approximation
-mcap_lambda <- c(a0=0.75, a1=0.75, b0=0.75, b1=0.75, gamma=0.75)
+mcap_lambda <- c(a0=0.75, a1=0.75, b0=0.75, b1=0.75, sigma=0.75, gamma=0.75)
 
-mcap_ngrid <- c(a0=1000, a1=1000, b0=1000, b1=1000, gamma=1000)
+mcap_ngrid <- c(a0=1000, a1=1000, b0=1000, b1=1000, sigma=1000, gamma=1000)
 
 # =============================================================================
 # Function to calculate the MCAP CIs 
