@@ -449,12 +449,12 @@ median_simulation <- function(sdat, n) {
 # Comparing cumulative actual data with real data
 
 med_sim <- median_simulation(sim_data, num_sims)
-csim <- cumulative_curve(med_sim, time_start, time_end)
+csim <- cumulative_curve(med_sim, time_start + 1, time_end)
 
 # Getting the cumulative curve for observed data
-cobs <- cumulative_curve(obs_data, time_start, time_end)
+cobs <- cumulative_curve(obs_data, time_start + 1, time_end)
 
-df <- data.frame('day' = seq(time_start, time_end), 
+df <- data.frame('day' = seq(time_start + 1, time_end), 
                  'obs_data' = cobs,
                  'sim_data' = csim)
 
