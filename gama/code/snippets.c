@@ -1,6 +1,6 @@
 /* pomp C snippet file: snippets */
-/* Time: 2020-05-16 17:06:27.030 -0400 */
-/* Salt: BBB31BF4F4245A8309C9F58B */
+/* Time: 2020-05-16 18:28:05.943 -0400 */
+/* Salt: 5A06188015D2026CE67727D1 */
 
 #include <pomp.h>
 #include <R_ext/Rdynload.h>
@@ -176,7 +176,7 @@ void __pomp_stepfn (double *__x, const double *__p, const int *__stateindex, con
 
   // Assigning the right number to the accumulation variable that's used
   // in the observation model is absolutely critical!!!!
-  C += trans[2];
+  C += trans[1];
  
 }
 

@@ -9,21 +9,29 @@ in_contacts_file = "contact_data_compact.txt"
 data = []
 t = t0 = 0
 r = r0 = lastr = 0
+i = i0 = lasti = 0
 with open(in_counts_file, 'r') as f:
     reader = csv.reader(f, dialect="excel")
     next(reader)
     for row in reader:
         t = int(row[0])
+        i = int(row[4])
         r = int(row[5]) + int(row[6])
         if t0 < t:
-            data.append([t0, max(0, r0 - lastr)])
+            dr = max(0, r0 - lastr)
+            di = max(0, i0 - lasti + dr)
+            data.append([t0, di])
             lastr = r0
+            lasti = i0
         t0 = t
+        i0 = i
         r0 = r
         if 120 < t:
             break
 
-data.append([t0, max(0, r0 - lastr)])
+dr = max(0, r0 - lastr)
+di = max(0, i0 - lasti + dr)
+data.append([t0, di])
 
 with open(out_counts_file, "w") as f:
     writer = csv.writer(f, dialect="excel")    
