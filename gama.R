@@ -355,8 +355,8 @@ res_global <- as.data.frame(res_global)
 
 all <- ldply(list(guess=param_guesses, result=subset(res_global, loglik > max(loglik)-50)), .id="type")
 
+pdf(file=file.path(plotting_folder, "2-mle_global_search.pdf"))
 pairs(pair_vars, data=all, col=ifelse(all$type=="guess", grey(0.5), "red"), pch=16)
-dev.copy(pdf, file.path(plotting_folder, "2-mle_global_search.pdf"))
 dev.off()
 
 # =============================================================================
