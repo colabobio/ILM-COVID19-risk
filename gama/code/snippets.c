@@ -1,6 +1,6 @@
 /* pomp C snippet file: snippets */
-/* Time: 2020-05-16 15:12:00.171 -0400 */
-/* Salt: 26FB046FAEDE1480665D8337 */
+/* Time: 2020-05-16 17:06:27.030 -0400 */
+/* Salt: BBB31BF4F4245A8309C9F58B */
 
 #include <pomp.h>
 #include <R_ext/Rdynload.h>
