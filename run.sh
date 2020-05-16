@@ -1,1 +1,1 @@
-Rscript -e "source('gama.R')" $1
+Rscript -e "source('gama.R')" $1 $2

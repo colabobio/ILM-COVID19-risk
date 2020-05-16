@@ -63,6 +63,7 @@ prop <- read.properties(prop_file)
 
 ```{r}
 # Observed data
+
 csv_table <- read.csv(file.path(main_folder, "case_counts.csv"))
 obs_data <- data.frame(day = csv_table$Time, cases = csv_table$Count)
 head(obs_data)
@@ -126,6 +127,11 @@ mcap_plik_seed <- as.integer(prop$mcap_plik_seed)
 2. SEIR MODEL
 
 ```{r}
+# Csnippets defining the SEIR model
+
+# pomp C API:
+# https://kingaa.github.io/pomp/vignettes/C_API.html
+
 sir_step <- Csnippet("
   double beta; 
   double foi;
@@ -445,10 +451,10 @@ ggsave(file.path(plotting_folder, "4-simulated_percentiles.pdf"))
 ```{r}
 # Some utility functions to calculate cumulative case numbers
 
-cumulative_curve <- function(dat, len) {
+cumulative_curve <- function(dat, t0, t1) {
   total_sum <- 0
   daily_sum <- c()
-  for (i in 1:len) {
+  for (i in t0:t1) {
     total_sum <- total_sum + dat$cases[i]
     daily_sum <- c(daily_sum, total_sum)
   }
@@ -476,14 +482,14 @@ median_simulation <- function(sdat, n) {
 # Comparing cumulative actual data with real data
 
 med_sim <- median_simulation(sim_data, num_sims)
-csim <- cumulative_curve(med_sim, time_end)
+csim <- cumulative_curve(med_sim, time_start, time_end)
 
 # Getting the cumulative curve for observed data
-cobs <- cumulative_curve(obs_data, time_end)
+cobs <- cumulative_curve(obs_data, time_start, time_end)
 
-df <- data.frame('day' = seq(1, time_end), 
-                  'obs_data' = cobs,
-                  'sim_data' = csim)
+df <- data.frame('day' = seq(time_start, time_end), 
+                 'obs_data' = cobs,
+                 'sim_data' = csim)
 
 ggplot(df, aes(day)) + 
   geom_line(aes(y = obs_data, colour = "Real Data")) + 

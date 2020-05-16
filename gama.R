@@ -1,8 +1,14 @@
 args = commandArgs(trailingOnly=TRUE)
-if (length(args)==0) {
-  main_folder <- "."
-} else {
-  main_folder <- args[1]  
+
+main_folder <- "."
+prop_file <- "default.properties"
+
+if (0 < length(args)) {
+  main_folder <- args[1]
+}
+
+if (1 < length(args)) {
+  prop_file <- file.path(main_folder, args[2])
 }
 
 # =============================================================================
@@ -11,6 +17,8 @@ if (length(args)==0) {
 library(doRNG)
 library(foreach)
 library(doParallel)
+
+library(properties)
 
 # tidyr has to be imported before magrittr so extract() from the latter is used
 library(tidyr)
@@ -27,7 +35,7 @@ library(pomp)
 stopifnot(packageVersion("pomp")>="2")
 
 # =============================================================================
-# Folders
+# Folders and properties
 
 output_folder <- file.path(main_folder, "output") 
 if (!dir.exists(output_folder)) dir.create(output_folder)
@@ -39,55 +47,68 @@ code_folder <- file.path(main_folder, "code")
 if (!dir.exists(code_folder)) dir.create(code_folder)
 file_name <- "snippets"
 
+prop <- read.properties(prop_file)
+
 # =============================================================================
 # Observed data
+
 csv_table <- read.csv(file.path(main_folder, "case_counts.csv"))
-case_data <- data.frame(day = csv_table$Time, cases = csv_table$Count)
-head(case_data)
+obs_data <- data.frame(day = csv_table$Time, cases = csv_table$Count)
+head(obs_data)
 
-max_day <- max(case_data$day)
-ggplot(data=subset(case_data, day <= max_day), aes(x=day, y=cases, group=1)) + geom_line()
-
+ggplot(data=obs_data, aes(x=day, y=cases, group=1)) + geom_line()
 ggsave(file.path(plotting_folder, "0-observed_data.pdf"))
 
 # =============================================================================
-# Parameters
+# General Parameters
 
-pop_size <- 9205
-exp0 <- 10
+pop_size <- as.integer(prop$pop_size)
+exp0 <- as.integer(prop$exp0)
+inf0 <- as.integer(prop$inf0)
+rec0 <- as.integer(prop$rec0)
 
-time_step <- 1/4
+time_unit <- prop$time_unit
+time_start <- max(as.numeric(prop$time_start), obs_data$day[1])
+time_end <- min(as.numeric(prop$time_end), max(obs_data$day))
+time_step <- as.numeric(prop$time_step)
 
-num_sims <- 100
+# Subset the observed data to the region of interest
+obs_data <- subset(obs_data, (time_start <= day & day <= time_end))
+#ggplot(data=obs_data, aes(x=day, y=cases, group=1)) + geom_line()
 
 free_param_names <- c("a0", "a1", "b0", "b1", "sigma", "gamma")
 free_param_box <- rbind(
-  a0 = c(0, 1),
-  a1 = c(0, 20),
-  b0 = c(0, 1),
-  b1 = c(0, 20),
-  sigma = c(0, 2),
-  gamma = c(0, 2)
+  a0 = c(as.numeric(prop$bounds_a0_min), as.numeric(prop$bounds_a0_max)),
+  a1 = c(as.numeric(prop$bounds_a1_min), as.numeric(prop$bounds_a1_max)),
+  b0 = c(as.numeric(prop$bounds_b0_min), as.numeric(prop$bounds_b0_max)),
+  b1 = c(as.numeric(prop$bounds_b1_min), as.numeric(prop$bounds_b1_max)),
+  sigma = c(as.numeric(prop$bounds_sigma_min), as.numeric(prop$bounds_sigma_max)),
+  gamma = c(as.numeric(prop$bounds_gamma_min), as.numeric(prop$bounds_gamma_max))
 )
 
 #free_param_names <- c("beta", "gamma")
 #free_param_box <- rbind(
-#  beta = c(0, 4),
-#  gamma = c(0, 2)
+#  beta = c(as.numeric(prop$bounds_beta_min), as.numeric(prop$bounds_beta_max)),
+#  gamma = c(as.numeric(prop$bounds_gamma_min), as.numeric(prop$bounds_gamma_max))
 #)
 
+log_trans_params <- c("a0", "a1", "b0", "b1", "sigma", "gamma")
+#log_trans_params <- c("beta", "gamma")
+
+logit_trans_params <- c()
+
 fixed_param_names <- c("pop", "S_0", "E_0", "I_0", "R_0", "rho")
-fixed_param_values <- c(pop=pop_size, S_0=1-exp0/pop_size, E_0=exp0/pop_size, I_0=0, R_0=0, rho=1.0)
+fixed_param_values <- c(pop=pop_size, S_0=1-(exp0+inf0+rec0)/pop_size, E_0=exp0/pop_size, I_0=inf0/pop_size, R_0=rec0/pop_size, rho=1.0)
 
 all_param_names <- c(free_param_names, fixed_param_names)
 
 # Random seeds, keep unchanged to ensure reproducibilty of results
-test_mle_seed <- 0998468235L
-full_mle_seed <- 0998468235L
-global_search_seed <- 290860873
-test_sim_seed <- 157999
-full_sim_seed <- 157999
-mcap_plik_seed <- 290860873
+test_mle_seed <- as.integer(prop$test_mle_seed)
+full_mle_seed <- as.integer(prop$full_mle_seed)
+global_search_seed <- as.integer(prop$global_search_seed)
+test_sim_seed <- as.integer(prop$test_sim_seed)
+full_sim_seed <- as.integer(prop$full_sim_seed)
+mcap_plik_seed <- as.integer(prop$mcap_plik_seed)
 
 # =============================================================================
 # Csnippets defining the SEIR model
@@ -119,6 +140,8 @@ sir_step <- Csnippet("
   I += trans[1] - trans[2];
   R = pop - S - E - I;
 
+  // Assigning the right number to the accumulation variable that's used
+  // in the observation model is absolutely critical!!!!
   C += trans[2];
 ")
 
@@ -217,9 +240,9 @@ double tol() {
 # The documentation of the pomp object
 # https://kingaa.github.io/pomp/manual/pomp.html
 
-case_data %>% 
-  pomp(t0 = case_data$day[1],
-       time = "day",
+obs_data %>% 
+  pomp(t0 = time_start,
+       time = time_unit,
        rprocess = euler(sir_step, delta.t=time_step),
        rinit = sir_init,
        rmeasure = rmeas,
@@ -230,31 +253,36 @@ case_data %>%
        accumvars=c("C"),
        statenames=c("S", "E", "I", "R", "C"),
        partrans=parameter_trans(
-         log=c("a0", "a1", "b0", "b1", "sigma", "gamma")),
-         #log=c("beta", "gamma")),
+         log=log_trans_params,
+         logit=logit_trans_params),
        paramnames = c(free_param_names, fixed_param_names),
        #compile=FALSE,
        verbose = TRUE
   ) -> model
-
-plot(model, main="")
 
 # =============================================================================
 # IF parameters, see more details in the manual and tutorial:
 # https://kingaa.github.io/pomp/manual/mif2.html
 # https://kingaa.github.io/sbied/mif/mif.html#choosing-the-algorithmic-settings-for-if2
 
-num_test_runs <- 10
+num_test_runs <- as.integer(prop$num_test_runs)
 
-num_guesses <- 100       # Number of starting points for the parameter guesses
-num_filter_iter <- 100    # Number of filtering iterations to perform
-num_particles <- 5000    # Number of particles to use in filtering.
-num_replicates <- 50     # Number of replicated particle filters at each point estimate
+num_guesses <- as.integer(prop$num_guesses)   
+num_filter_iter <- as.integer(prop$num_filter_iter)
+num_particles <- as.integer(prop$num_particles)
+num_replicates <- as.integer(prop$num_replicates)
 
-perturb_sizes <- list(a0=0.02, a1=0.02, b0=0.02, b1=0.02, sigma=0.02, gamma=0.02)
-#perturb_sizes <- list(beta=0.02, gamma=0.02)
-cool_frac <- 0.5
-cool_type <- "geometric"
+perturb_sizes <- list(a0=as.numeric(prop$perturb_size_a0),
+                      a1=as.numeric(prop$perturb_size_a1),
+                      b0=as.numeric(prop$perturb_size_b0),
+                      b1=as.numeric(prop$perturb_size_b1),
+                      sigma=as.numeric(prop$perturb_size_sigma),
+                      gamma=as.numeric(prop$perturb_size_gamma))
+#perturb_sizes <- list(beta=as.numeric(prop$perturb_size_beta),
+#                      gamma=as.numeric(prop$perturb_size_gamma))
+
+cool_frac <- as.numeric(prop$cool_frac)
+cool_type <- prop$cool_type
 
 # Variables to use in the scatterplot matrix showing the result of the IF search
 pair_vars <- ~loglik+a0+a1+b0+b1+sigma+gamma
@@ -293,7 +321,6 @@ ggplot(data=melt(traces(mifs_test)),
   theme_bw()
 
 ggsave(file.path(plotting_folder, "1-mle_local_search.pdf"))
-
 
 # =============================================================================
 # Full MLE with multiple starting points for the free parameters
@@ -345,6 +372,11 @@ write.csv(theta, file=file.path(output_folder, "param_point_estimates.csv"), row
 theta
 
 # =============================================================================
+# Simulation parameters
+
+num_sims <- as.integer(prop$num_sims)
+
+# =============================================================================
 # Running simulations using the MLE parameters
 
 #set.seed(test_sim_seed)
@@ -355,8 +387,7 @@ model  %>%
   guides(color=FALSE) +
   geom_line() + facet_wrap(~.id, ncol=2)
 
-
-ggsave(file.path(plotting_folder, "3-simulations.pdf"))  
+ggsave(file.path(plotting_folder, "3-simulations.pdf"))
 
 # =============================================================================
 # Computing a large number of simulations
@@ -388,10 +419,10 @@ ggsave(file.path(plotting_folder, "4-simulated_percentiles.pdf"))
 # =============================================================================
 # Some utility functions to calculate cumulative case numbers
 
-cumulative_curve <- function(dat, len) {
+cumulative_curve <- function(dat, t0, t1) {
   total_sum <- 0
   daily_sum <- c()
-  for (i in 1:len) {
+  for (i in t0:t1) {
     total_sum <- total_sum + dat$cases[i]
     daily_sum <- c(daily_sum, total_sum)
   }
@@ -418,14 +449,14 @@ median_simulation <- function(sdat, n) {
 # Comparing cumulative actual data with real data
 
 med_sim <- median_simulation(sim_data, num_sims)
-csim <- cumulative_curve(med_sim, max_day)
+csim <- cumulative_curve(med_sim, time_start, time_end)
 
 # Getting the cumulative curve for observed data
-cobs <- cumulative_curve(case_data, max_day)
+cobs <- cumulative_curve(obs_data, time_start, time_end)
 
-df <- data.frame('day' = seq(1, max_day), 
-                  'obs_data' = cobs,
-                  'sim_data' = csim)
+df <- data.frame('day' = seq(time_start, time_end), 
+                 'obs_data' = cobs,
+                 'sim_data' = csim)
 
 ggplot(df, aes(day)) + 
   geom_line(aes(y = obs_data, colour = "Real Data")) + 
@@ -435,32 +466,35 @@ ggplot(df, aes(day)) +
 ggsave(file.path(plotting_folder, "4-cumulative_cases.pdf"))
 
 # =============================================================================
-# CALCULATION OF THE CONFIDENCE INTERVAL FOR THE PARAMETERS (OPTIONAL)
-# =============================================================================
-
-# =============================================================================
 # MCAP settings
 
-mcap_confidence <- 0.95  # The desired confidence
+mcap_confidence <- as.numeric(prop$mcap_confidence)
 
-# Profile design settings
-mcap_profdes_len <- 15   # Number of subdivisions of the parameter range in the profile
-mcap_nprof <- 10         # Number of starts per profile point
-mcap_replicates <- 5
-mcap_num_particles_pfilt <- 2000
+mcap_profdes_len <- as.integer(prop$mcap_profdes_len)
+mcap_nprof <- as.integer(prop$mcap_nprof)
+mcap_replicates <- as.integer(prop$mcap_replicates)
+mcap_num_particles_pfilt <- as.integer(prop$mcap_num_particles_pfilt)
 
-# IF settings to generate the likelihood surface for each parameter
-mcap_num_particles <- 2000
-mcap_num_filter_iter <- 100
+mcap_num_particles <- as.integer(prop$mcap_num_particles)
+mcap_num_filter_iter <- as.integer(prop$mcap_num_filter_iter)
 
-mcap_cool_type <- "geometric"
-mcap_cool_frac <- 0.5
-mcap_cool_frac_lastif <- 0.1
+mcap_cool_type <- prop$mcap_cool_type
+mcap_cool_frac <- as.numeric(prop$mcap_cool_frac)
+mcap_cool_frac_lastif <- as.numeric(prop$mcap_cool_frac_lastif)
 
-# Lambda closer to 1 increases the curvature of the likelihood approximation
-mcap_lambda <- c(a0=0.75, a1=0.75, b0=0.75, b1=0.75, sigma=0.75, gamma=0.75)
+mcap_lambda <- c(a0=as.numeric(prop$mcap_lambda_a0),
+                 a1=as.numeric(prop$mcap_lambda_a1),
+                 b0=as.numeric(prop$mcap_lambda_b0),
+                 b1=as.numeric(prop$mcap_lambda_b1),
+                 sigma=as.numeric(prop$mcap_lambda_sigma),
+                 gamma=as.numeric(prop$mcap_lambda_gamma))
 
-mcap_ngrid <- c(a0=1000, a1=1000, b0=1000, b1=1000, sigma=1000, gamma=1000)
+mcap_ngrid <- c(a0=as.numeric(prop$mcap_ngrid_a0),
+                 a1=as.numeric(prop$mcap_ngrid_a1),
+                 b0=as.numeric(prop$mcap_ngrid_b0),
+                 b1=as.numeric(prop$mcap_ngrid_b1),
+                 sigma=as.numeric(prop$mcap_ngrid_sigma),
+                 gamma=as.numeric(prop$mcap_ngrid_gamma))
 
 # =============================================================================
 # Function to calculate the MCAP CIs 
@@ -511,7 +545,7 @@ mcap <- function(lp, parameter, confidence, lambda, Ngrid) {
 plik <- function(pname, pval0, pval1) {
   registerDoParallel()
   
-  bake(file=file.path(cooking_folder, paste(pname, "_mcap.rds", sep="")), {  
+  bake(file=file.path(cooking_folder, paste("mcap_search_", pname, ".rds", sep="")), {  
     
     desel <- which(names(mle_params) %in% c("loglik", "loglik.se", pname))
     mle_params %>% 
