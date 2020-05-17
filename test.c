@@ -1,19 +1,28 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <string.h>
 
 static int *indices = NULL;
 static double *contacts = NULL;
 static int max_t = 0;
 static int num_v = 0;
 
-int load_data() {
+int load_data(const char *dir) {
   if (indices == NULL) {
     printf("Reading data...\n");
 
+    char *indices_fn = (char *) malloc(1 + strlen(dir)+ strlen("/indices"));
+    strcpy(indices_fn, dir);
+    strcat(indices_fn, "/indices");
+
+    char *contacts_fn = (char *) malloc(1 + strlen(dir)+ strlen("/contacts"));
+    strcpy(contacts_fn, dir);
+    strcat(contacts_fn, "/contacts");
+
     FILE *file;
 
-    file = fopen("indices", "r");
+    file = fopen(indices_fn, "r");
 
     int idx;
     while (fscanf(file, "%d", &idx) > 0) max_t++;
@@ -27,7 +36,7 @@ int load_data() {
     }
     fclose(file);
 
-    file = fopen("contacts", "r");
+    file = fopen(contacts_fn, "r");
     float val;
     while (fscanf(file, "%f", &val) > 0) num_v++;
     rewind(file);
@@ -65,10 +74,15 @@ void print_data() {
 }
 
 void print_beta() {
-  double a0 = 0.1; // should be low 
-  double a1 = 10.0; // should be high according to the importance of covariate.
-  double b0 = 0.1; // only considering 2 covariates as of now for both infectivity and succeptibility
+  double a0 = 0.1;
+  double a1 = 10.0;
+  double b0 = 0.1;
   double b1 = 10.0;
+
+  // double a0 = 1.0;
+  // double a1 = 2.0;
+  // double b0 = 0.5;
+  // double b1 = 3.0;
 
   for (int t = 0; t < max_t; t++) {
 
@@ -93,10 +107,15 @@ void print_beta() {
   }
 }
 
-int main() {
-   int res = load_data();
-   printf("Got %d\n", res);
-   print_data();
-   print_beta();
-   return 0;
+int main(int argc, char *argv[]) {
+  if ( argc != 2 ) { /* argc should be 2 for correct execution */
+    /* We print argv[0] assuming it is the program name */
+    printf("usage: %s directory\n", argv[0]);
+  } else {
+    int res = load_data(argv[1]);
+    printf("Got %d\n", res);
+    print_data();
+    // print_beta();
+    return 0;
+  }
 }

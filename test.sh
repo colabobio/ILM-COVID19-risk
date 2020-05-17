@@ -2,4 +2,4 @@
 
 clang test.c -o test
 
-./test
+./test $1
