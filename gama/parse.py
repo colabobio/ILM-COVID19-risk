@@ -6,6 +6,8 @@ out_counts_file = "case_counts.csv"
 debug_contacts = True
 in_contacts_file = "contact_data_compact.txt"
 
+max_time = 120
+
 data = []
 t = t0 = 0
 r = r0 = lastr = 0
@@ -26,7 +28,7 @@ with open(in_counts_file, 'r') as f:
         t0 = t
         i0 = i
         r0 = r
-        if 120 < t:
+        if max_time < t:
             break
 
 dr = max(0, r0 - lastr)
