@@ -86,6 +86,8 @@ with open(in_contacts_file, 'r') as f:
 values = []
 indices =[-1] * (t + 1)
 nval = 0
+tninf = 0
+tncont = 0
 for cdat in history:
    t = cdat["time"]
    if debug_contacts: print("=======> time", t)
@@ -97,12 +99,13 @@ for cdat in history:
        ilen = len(contacts)
        nval += 2 + ilen
        values += [ilen, infectivity]
+       tninf += 1
+       tncont += ilen
        for v in contacts:
            values += [v]
        if debug_contacts: print(inf, infectivity, contacts)
    values += [-1]
    nval += 1
-   # print(len(values), nval)
 
 if debug_contacts:
     for t in range(0, len(indices)):
@@ -118,6 +121,10 @@ if debug_contacts:
            susc = values[idx:idx+ncont]
            idx += ncont
            print(susc)
+
+if debug_contacts:
+  print("Total number of infected:", tninf)
+  print("Total number of contacts:", tncont)           
 
 # Adding missing indices
 for i in range(len(indices), 0, -1):

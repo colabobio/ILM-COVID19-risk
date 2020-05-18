@@ -76,6 +76,8 @@ void print_data() {
 void print_beta(double a0, double a1, double b0, double b1) {
   printf("\nBETA ESTIMATES\n");
 
+  int tninf = 0;
+  int tncont = 0;
   for (int t = 0; t < max_t; t++) {
 
     printf("=======> time %d\n", t);
@@ -84,19 +86,23 @@ void print_beta(double a0, double a1, double b0, double b1) {
     double beta = 0;
     while (-1 < contacts[idx]) {
       int ncont = (int) contacts[idx++];
-      double y = contacts[idx++];
+      double y = contacts[idx++];      
       for (int i = 0; i < ncont; i++) {
         double x = contacts[idx++];
         double p = (a0 + a1 * x) * (b0 + b1 * y);
         beta += 1 - exp(-p);
       }
       ninf++;
+      tncont += ncont;
     }
+    tninf += ninf;
     if (0 < ninf) {
       beta /= ninf;
     }
     printf("%.3f\n", beta);
   }
+  printf("Total number of infected: %d\n", tninf);
+  printf("Total number of contacts: %d\n", tncont);  
 }
 
 int main(int argc, char *argv[]) {

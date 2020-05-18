@@ -156,7 +156,7 @@ dmeas <- Csnippet("
   lik = dbinom(cases, I, rho, give_log);
 ")
 
-extra <- Csnippet("
+extra <- Csnippet(gsub("MAIN_FOLDER", main_folder, "
 double calc_beta(double td, double a0, double a1, double b0, double b1) {
   static int *indices = NULL;
   static double *contacts = NULL;
@@ -166,7 +166,7 @@ double calc_beta(double td, double a0, double a1, double b0, double b1) {
   if (indices == NULL) {
     FILE *file;
 
-    file = fopen(\"./gama/indices\", \"r\");
+    file = fopen(\"MAIN_FOLDER/indices\", \"r\");
 
     int idx;
     while (fscanf(file, \"%d\", &idx) > 0) max_t++;
@@ -180,7 +180,7 @@ double calc_beta(double td, double a0, double a1, double b0, double b1) {
     }
     fclose(file);
 
-    file = fopen(\"./gama/contacts\", \"r\");
+    file = fopen(\"MAIN_FOLDER/contacts\", \"r\");
     float val;
     while (fscanf(file, \"%f\", &val) > 0) num_v++;
     rewind(file);
@@ -221,12 +221,7 @@ double calc_beta(double td, double a0, double a1, double b0, double b1) {
 
   return beta;
 }
-
-double tol() {
-  static double val = 1e-6;
-  return val;
-} 
-")
+"))
 
 # =============================================================================
 # The documentation of the pomp object

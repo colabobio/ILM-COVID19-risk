@@ -1,9 +1,9 @@
 #!/bin/bash
 
-rm gama/output/bake/*.*
+rm $1/output/bake/*.*
 
-if [ $# -gt 0 ]; then
-  if [ $1 == "all" ]; then
-    rm -r gama/output
+if [ $# -gt 1 ]; then
+  if [ $2 == "all" ]; then
+    rm -r $1/output
   fi
 fi
