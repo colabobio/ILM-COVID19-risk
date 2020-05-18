@@ -74,6 +74,8 @@ void print_data() {
 }
 
 void print_beta(double a0, double a1, double b0, double b1) {
+  printf("\nBETA ESTIMATES\n");
+
   for (int t = 0; t < max_t; t++) {
 
     printf("=======> time %d\n", t);

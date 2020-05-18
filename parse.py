@@ -88,7 +88,7 @@ indices =[-1] * (t + 1)
 nval = 0
 for cdat in history:
    t = cdat["time"]
-   if debug_contacts: print("=======> time")
+   if debug_contacts: print("=======> time", t)
    infected = cdat["infected"]
    indices[t] = nval
    for inf in infected:
