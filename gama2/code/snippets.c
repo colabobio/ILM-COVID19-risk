@@ -1,6 +1,6 @@
 /* pomp C snippet file: snippets */
-/* Time: 2020-05-17 09:52:10.486 -0400 */
-/* Salt: 8AB9F1F5BF5F1994DA155CCB */
+/* Time: 2020-05-17 20:35:02.053 -0400 */
+/* Salt: 75C71858DD0AD675397E6FC0 */
 
 #include <pomp.h>
 #include <R_ext/Rdynload.h>
@@ -151,7 +151,7 @@ void __pomp_rinit (double *__x, const double *__p, double t, const int *__statei
 void __pomp_stepfn (double *__x, const double *__p, const int *__stateindex, const int *__parindex, const int *__covindex, const double *__covars, double t, double dt)
 {
  
-  double beta; 
+  double beta;
   double foi;
   double rate[3], trans[3];
 
@@ -176,7 +176,7 @@ void __pomp_stepfn (double *__x, const double *__p, const int *__stateindex, con
 
   // Assigning the right number to the accumulation variable that's used
   // in the observation model is absolutely critical!!!!
-  C += trans[1];
+  C += trans[2];
  
 }
 

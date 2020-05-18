@@ -1,19 +1,22 @@
-args = commandArgs(trailingOnly=TRUE)
+---
+title: "SEIR parameter estimation with POMP"
+output:
+  html_document:
+    df_print: paged
+---
 
-main_folder <- "."
-prop_file <- "default.properties"
+Fits standard SEIR parameters (beta, sigma, gamma) using case counts from GAMA simulations.
 
-if (0 < length(args)) {
-  main_folder <- args[1]
-}
+Table of Contents:
+1. Initialization
+2. SEIR Model
+3. Global MLE calculation
+4. Simulations using the point estimates
+5. Calculation of the confidence interval of the parameters
 
-if (1 < length(args)) {
-  prop_file <- file.path(main_folder, args[2])
-}
+1. INITIALIZATION
 
-# =============================================================================
-# Libraries
-
+```{r}
 library(doRNG)
 library(foreach)
 library(doParallel)
@@ -33,23 +36,29 @@ theme_set(theme_bw())
 
 library(pomp)
 stopifnot(packageVersion("pomp")>="2")
+```
 
-# =============================================================================
+```{r}
 # Folders and properties
 
-output_folder <- file.path(main_folder, "output") 
+main_folder <- "./gama2"
+
+output_folder <- file.path(main_folder, "output_beta") 
 if (!dir.exists(output_folder)) dir.create(output_folder)
-cooking_folder <- file.path(main_folder, "output", "bake")
+cooking_folder <- file.path(main_folder, "output_beta", "bake")
 if (!dir.exists(cooking_folder)) dir.create(cooking_folder)
-plotting_folder <- file.path(main_folder, "output", "plots")
+plotting_folder <- file.path(main_folder, "output_beta", "plots")
 if (!dir.exists(plotting_folder)) dir.create(plotting_folder)
-code_folder <- file.path(main_folder, "code")
+code_folder <- file.path(main_folder, "code_beta")
 if (!dir.exists(code_folder)) dir.create(code_folder)
 file_name <- "snippets"
 
+prop_file = file.path(main_folder, "fast.properties")
+#prop_file = file.path(main_folder, "normal.properties")
 prop <- read.properties(prop_file)
+```
 
-# =============================================================================
+```{r}
 # Observed data
 
 csv_table <- read.csv(file.path(main_folder, "case_counts.csv"))
@@ -58,8 +67,9 @@ head(obs_data)
 
 ggplot(data=obs_data, aes(x=day, y=cases, group=1)) + geom_line()
 ggsave(file.path(plotting_folder, "0-observed_data.pdf"))
+```
 
-# =============================================================================
+```{r}
 # General Parameters
 
 pop_size <- as.integer(prop$pop_size)
@@ -76,17 +86,14 @@ time_step <- as.numeric(prop$time_step)
 obs_data <- subset(obs_data, (time_start <= day & day <= time_end))
 #ggplot(data=obs_data, aes(x=day, y=cases, group=1)) + geom_line()
 
-free_param_names <- c("a0", "a1", "b0", "b1", "sigma", "gamma")
+free_param_names <- c("beta", "sigma", "gamma")
 free_param_box <- rbind(
-  a0 = c(as.numeric(prop$bounds_a0_min), as.numeric(prop$bounds_a0_max)),
-  a1 = c(as.numeric(prop$bounds_a1_min), as.numeric(prop$bounds_a1_max)),
-  b0 = c(as.numeric(prop$bounds_b0_min), as.numeric(prop$bounds_b0_max)),
-  b1 = c(as.numeric(prop$bounds_b1_min), as.numeric(prop$bounds_b1_max)),
+  beta = c(0, 5),
   sigma = c(as.numeric(prop$bounds_sigma_min), as.numeric(prop$bounds_sigma_max)),
   gamma = c(as.numeric(prop$bounds_gamma_min), as.numeric(prop$bounds_gamma_max))
 )
 
-log_trans_params <- c("a0", "a1", "b0", "b1", "sigma", "gamma")
+log_trans_params <- c("beta", "sigma", "gamma")
 logit_trans_params <- c()
 
 fixed_param_names <- c("pop", "S_0", "E_0", "I_0", "R_0", "rho")
@@ -101,19 +108,19 @@ global_search_seed <- as.integer(prop$global_search_seed)
 test_sim_seed <- as.integer(prop$test_sim_seed)
 full_sim_seed <- as.integer(prop$full_sim_seed)
 mcap_plik_seed <- as.integer(prop$mcap_plik_seed)
+```
 
-# =============================================================================
+2. SEIR MODEL
+
+```{r}
 # Csnippets defining the SEIR model
 
 # pomp C API:
 # https://kingaa.github.io/pomp/vignettes/C_API.html
 
 sir_step <- Csnippet("
-  double beta;
   double foi;
   double rate[3], trans[3];
-
-  beta = calc_beta(t, a0, a1, b0, b1);
 
   // expected force of infection
   foi = beta * I/pop;
@@ -134,7 +141,7 @@ sir_step <- Csnippet("
 
   // Assigning the right number to the accumulation variable that's used
   // in the observation model is absolutely critical!!!!
-  C += trans[2];
+  C += trans[1];
 ")
 
 sir_init <- Csnippet("
@@ -155,80 +162,9 @@ rmeas <- Csnippet("
 dmeas <- Csnippet("
   lik = dbinom(cases, I, rho, give_log);
 ")
+```
 
-extra <- Csnippet("
-double calc_beta(double td, double a0, double a1, double b0, double b1) {
-  static int *indices = NULL;
-  static double *contacts = NULL;
-  static int max_t = 0;
-  static int num_v = 0;
-
-  if (indices == NULL) {
-    FILE *file;
-
-    file = fopen(\"./gama/indices\", \"r\");
-
-    int idx;
-    while (fscanf(file, \"%d\", &idx) > 0) max_t++;
-    rewind(file);
-
-    indices = (int *)malloc(sizeof(int)*max_t);
-    int i = 0;
-    while (fscanf(file, \"%d\", &idx) > 0) {
-      indices[i] = idx;
-      i++;
-    }
-    fclose(file);
-
-    file = fopen(\"./gama/contacts\", \"r\");
-    float val;
-    while (fscanf(file, \"%f\", &val) > 0) num_v++;
-    rewind(file);
-
-    contacts = (double *)malloc(sizeof(double)*num_v);
-    i = 0;
-    while (fscanf(file, \"%f\", &val) > 0) {
-      contacts[i] = val;
-      i++;
-    }
-    fclose(file);
-
-    //Rprintf(\"%d %d\\n\", max_t, num_v);
-  }
-
-  double beta = 0;
-
-  int t = (int) td;
-  if (max_t <= t) t = max_t - 1;
-  int idx = indices[t];
-  int ninf = 0;
-  while (-1 < contacts[idx]) {
-    int ncont = (int) contacts[idx++];
-    double y = contacts[idx++];
-    for (int i = 0; i < ncont; i++) {
-      double x = contacts[idx++];
-      double p = (a0 + a1 * x) * (b0 + b1 * y);
-      beta += 1 - exp(-p);
-    }
-    ninf++;
-  }
-
-  if (0 < ninf) {
-    beta /= ninf;
-  }
-
-  //Rprintf(\"%lg = %lg\\n\", td, beta);
-
-  return beta;
-}
-
-double tol() {
-  static double val = 1e-6;
-  return val;
-} 
-")
-
-# =============================================================================
+```{r}
 # The documentation of the pomp object
 # https://kingaa.github.io/pomp/manual/pomp.html
 
@@ -239,7 +175,6 @@ obs_data %>%
        rinit = sir_init,
        rmeasure = rmeas,
        dmeasure = dmeas,
-       globals = extra,
        cdir = code_folder,
        cfile = file_name,
        accumvars=c("C"),
@@ -248,11 +183,15 @@ obs_data %>%
          log=log_trans_params,
          logit=logit_trans_params),
        paramnames = c(free_param_names, fixed_param_names),
-       #compile=FALSE,
        verbose = TRUE
   ) -> model
 
-# =============================================================================
+plot(model, main="")
+```
+
+3. GLOBAL MLE CALCULATION
+
+```{r}
 # IF parameters, see more details in the manual and tutorial:
 # https://kingaa.github.io/pomp/manual/mif2.html
 # https://kingaa.github.io/sbied/mif/mif.html#choosing-the-algorithmic-settings-for-if2
@@ -264,10 +203,7 @@ num_filter_iter <- as.integer(prop$num_filter_iter)
 num_particles <- as.integer(prop$num_particles)
 num_replicates <- as.integer(prop$num_replicates)
 
-perturb_sizes <- list(a0=as.numeric(prop$perturb_size_a0),
-                      a1=as.numeric(prop$perturb_size_a1),
-                      b0=as.numeric(prop$perturb_size_b0),
-                      b1=as.numeric(prop$perturb_size_b1),
+perturb_sizes <- list(beta=0.02,
                       sigma=as.numeric(prop$perturb_size_sigma),
                       gamma=as.numeric(prop$perturb_size_gamma))
 
@@ -275,9 +211,10 @@ cool_frac <- as.numeric(prop$cool_frac)
 cool_type <- prop$cool_type
 
 # Variables to use in the scatterplot matrix showing the result of the IF search
-pair_vars <- ~loglik+a0+a1+b0+b1+sigma+gamma
+pair_vars <- ~loglik+beta+sigma+gamma
+```
 
-# =============================================================================
+```{r}
 # Test run from single starting point in parameter space and no replicates
 
 registerDoParallel()
@@ -310,8 +247,9 @@ ggplot(data=melt(traces(mifs_test)),
   theme_bw()
 
 ggsave(file.path(plotting_folder, "1-mle_local_search.pdf"))
+```
 
-# =============================================================================
+```{r}
 # Full MLE with multiple starting points for the free parameters
 
 registerDoParallel()
@@ -344,11 +282,13 @@ res_global <- as.data.frame(res_global)
 
 all <- ldply(list(guess=param_guesses, result=subset(res_global, loglik > max(loglik)-50)), .id="type")
 
-pdf(file=file.path(plotting_folder, "2-mle_global_search.pdf"))
+# pdf(file=file.path(plotting_folder, "2-mle_global_search.pdf"))
 pairs(pair_vars, data=all, col=ifelse(all$type=="guess", grey(0.5), "red"), pch=16)
+dev.copy(pdf, file.path(plotting_folder, "2-mle_global_search.pdf"))
 dev.off()
+```
 
-# =============================================================================
+```{r}
 # Getting best parameters
 
 mle_params <- arrange(rbind(res_global), -loglik)
@@ -359,13 +299,17 @@ mle_global <- mle_params[which.max( mle_params[,log_idx] ), ]
 mle_global %>% extract(all_param_names) %>% unlist() -> theta
 write.csv(theta, file=file.path(output_folder, "param_point_estimates.csv"), row.names=TRUE, na="")
 theta
+```
 
-# =============================================================================
+4. SIMULATIONS USING THE POINT ESTIMATES
+
+```{r}
 # Simulation parameters
 
 num_sims <- as.integer(prop$num_sims)
+```
 
-# =============================================================================
+```{r}
 # Running simulations using the MLE parameters
 
 #set.seed(test_sim_seed)
@@ -377,8 +321,9 @@ model  %>%
   geom_line() + facet_wrap(~.id, ncol=2)
 
 ggsave(file.path(plotting_folder, "3-simulations.pdf"))
+```
 
-# =============================================================================
+```{r}
 # Computing a large number of simulations
 
 set.seed(full_sim_seed)
@@ -386,8 +331,9 @@ set.seed(full_sim_seed)
 # Getting the median cumulative curve for the simulations
 model %>% 
   simulate(params=theta, nsim=num_sims, format = "data.frame", include.data=TRUE) -> sim_data
+```
 
-# =============================================================================
+```{r}
 # Compare the observed data with the simulated data between the 5th and 95th percentiles
 
 sim_data %>%
@@ -404,8 +350,9 @@ sim_data %>%
          geom_ribbon(alpha=0.2)
 
 ggsave(file.path(plotting_folder, "4-simulated_percentiles.pdf"))
+```
 
-# =============================================================================
+```{r}
 # Some utility functions to calculate cumulative case numbers
 
 cumulative_curve <- function(dat, t0, t1) {
@@ -433,8 +380,9 @@ median_simulation <- function(sdat, n) {
   
   return(median_sim)
 }
+```
 
-# =============================================================================
+```{r}
 # Comparing cumulative actual data with real data
 
 med_sim <- median_simulation(sim_data, num_sims)
@@ -453,8 +401,19 @@ ggplot(df, aes(day)) +
   ylab('Cumulative Number of Cases')
 
 ggsave(file.path(plotting_folder, "4-cumulative_cases.pdf"))
+```
 
-# =============================================================================
+5. CALCULATION OF THE CONFIDENCE INTERVAL OF THE PARAMETERS
+
+Note that calculating the CIs for all the parameters in the model can be quite time consuming!
+The method used here (MCAP, see references below) involves recalculating the likelihood surface 
+for a number of fixed values of the parameter of interest.
+
+Parameter estimation tutorial: http://kingaa.github.io/short-course/parest/parest.html
+Standard errors for the MLE: https://kingaa.github.io/sbied/pfilter/pfilter.html#standard-errors-for-the-mle
+Monte Carlo profile (MCAP) confidence intervals: https://royalsocietypublishing.org/doi/10.1098/rsif.2017.0126
+
+```{r}
 # MCAP settings
 
 mcap_confidence <- as.numeric(prop$mcap_confidence)
@@ -471,21 +430,16 @@ mcap_cool_type <- prop$mcap_cool_type
 mcap_cool_frac <- as.numeric(prop$mcap_cool_frac)
 mcap_cool_frac_lastif <- as.numeric(prop$mcap_cool_frac_lastif)
 
-mcap_lambda <- c(a0=as.numeric(prop$mcap_lambda_a0),
-                 a1=as.numeric(prop$mcap_lambda_a1),
-                 b0=as.numeric(prop$mcap_lambda_b0),
-                 b1=as.numeric(prop$mcap_lambda_b1),
+mcap_lambda <- c(beta=0.75,
                  sigma=as.numeric(prop$mcap_lambda_sigma),
                  gamma=as.numeric(prop$mcap_lambda_gamma))
 
-mcap_ngrid <- c(a0=as.numeric(prop$mcap_ngrid_a0),
-                a1=as.numeric(prop$mcap_ngrid_a1),
-                b0=as.numeric(prop$mcap_ngrid_b0),
-                b1=as.numeric(prop$mcap_ngrid_b1),
+mcap_ngrid <- c(beta=1000,
                 sigma=as.numeric(prop$mcap_ngrid_sigma),
                 gamma=as.numeric(prop$mcap_ngrid_gamma))
+```
 
-# =============================================================================
+```{r}
 # Function to calculate the MCAP CIs 
 
 mcap <- function(lp, parameter, confidence, lambda, Ngrid) {
@@ -527,8 +481,9 @@ mcap <- function(lp, parameter, confidence, lambda, Ngrid) {
        se=sqrt(se_total_squared)
   )
 }
+```
 
-# =============================================================================
+```{r}
 # Generates the model for the profile likelihood calculation
 
 plik <- function(pname, pval0, pval1) {
@@ -578,8 +533,9 @@ plik <- function(pname, pval0, pval1) {
   
   return(pmodel)
 }
+```
 
-# =============================================================================
+```{r}
 # Iterate over all the free parameters in the model to calculate their CIs... may take a while!
 
 par_names <- row.names(free_param_box)
@@ -614,3 +570,4 @@ for (i in 1:nrow(free_param_box)) {
 }
 
 write.csv(cis, file=file.path(output_folder, "param_confidence_intervals.csv"), row.names=FALSE, na="")
+```

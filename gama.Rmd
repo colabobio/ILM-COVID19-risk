@@ -96,15 +96,7 @@ free_param_box <- rbind(
   gamma = c(as.numeric(prop$bounds_gamma_min), as.numeric(prop$bounds_gamma_max))
 )
 
-#free_param_names <- c("beta", "gamma")
-#free_param_box <- rbind(
-#  beta = c(as.numeric(prop$bounds_beta_min), as.numeric(prop$bounds_beta_max)),
-#  gamma = c(as.numeric(prop$bounds_gamma_min), as.numeric(prop$bounds_gamma_max))
-#)
-
 log_trans_params <- c("a0", "a1", "b0", "b1", "sigma", "gamma")
-#log_trans_params <- c("beta", "gamma")
-
 logit_trans_params <- c()
 
 fixed_param_names <- c("pop", "S_0", "E_0", "I_0", "R_0", "rho")
@@ -130,7 +122,7 @@ mcap_plik_seed <- as.integer(prop$mcap_plik_seed)
 # https://kingaa.github.io/pomp/vignettes/C_API.html
 
 sir_step <- Csnippet("
-  double beta; 
+  double beta;
   double foi;
   double rate[3], trans[3];
 
@@ -297,15 +289,12 @@ perturb_sizes <- list(a0=as.numeric(prop$perturb_size_a0),
                       b1=as.numeric(prop$perturb_size_b1),
                       sigma=as.numeric(prop$perturb_size_sigma),
                       gamma=as.numeric(prop$perturb_size_gamma))
-#perturb_sizes <- list(beta=as.numeric(prop$perturb_size_beta),
-#                      gamma=as.numeric(prop$perturb_size_gamma))
 
 cool_frac <- as.numeric(prop$cool_frac)
 cool_type <- prop$cool_type
 
 # Variables to use in the scatterplot matrix showing the result of the IF search
 pair_vars <- ~loglik+a0+a1+b0+b1+sigma+gamma
-#pair_vars <- ~loglik+beta+gamma
 ```
 
 ```{r}
@@ -532,11 +521,11 @@ mcap_lambda <- c(a0=as.numeric(prop$mcap_lambda_a0),
                  gamma=as.numeric(prop$mcap_lambda_gamma))
 
 mcap_ngrid <- c(a0=as.numeric(prop$mcap_ngrid_a0),
-                 a1=as.numeric(prop$mcap_ngrid_a1),
-                 b0=as.numeric(prop$mcap_ngrid_b0),
-                 b1=as.numeric(prop$mcap_ngrid_b1),
-                 sigma=as.numeric(prop$mcap_ngrid_sigma),
-                 gamma=as.numeric(prop$mcap_ngrid_gamma))
+                a1=as.numeric(prop$mcap_ngrid_a1),
+                b0=as.numeric(prop$mcap_ngrid_b0),
+                b1=as.numeric(prop$mcap_ngrid_b1),
+                sigma=as.numeric(prop$mcap_ngrid_sigma),
+                gamma=as.numeric(prop$mcap_ngrid_gamma))
 ```
 
 ```{r}
