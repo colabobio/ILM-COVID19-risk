@@ -14,8 +14,18 @@ where the first argument is the folder containing the data, and the second the n
 
 ## Preparing data
 
-The python script parse.py will read in contact and case data from GAMA, and output the corresponding files needed in POMP. It can be run without any arguments. In order to test that the resulting files were properly parsed, the test.sh script can be run.
+The python script parse.py will read in contact and case data from GAMA, and output the corresponding files needed in POMP. It requires two arguments: the folder where the data files generated with GAMA are located, and the maximum time for the resulting case data. 
+
+```python parse.py -i gama2 -t 120```
+
+The flag ```-d``` can also be added to print out contact debug information. This script generates three output files in the specified folder: case_counts.csv containing the new cases per each time unit, and the contact information needed to calculate beta in the SIER model in POMP in two separate files, indices and contacts.
+
+In order to test that the resulting files were properly parsed, the test.sh script can be used to compare the contacts printed by the parse script with the debug options with the contacts as read from the indices and contacts files by the test script:
+
+```./test.sh <dir> <a0> <a1> <b0> <b1>```
+
+The argument ```<dir>``` is the directory where the parsed data files are saved, the arguments a0 through b1 are the coefficients used to generate the GAMA data, and are optional. If provided, the value of beta for each time will calculated as printed as well.
 
 ## Cleaning-up
 
-The IF function in POMP creates bake and stew files that are stored in output/bake. The advantage of keeping those files is that the expensive MLE calculations do not need to be run again when those files are already generated, but if the parameters change, they should be removed to generate new ones. Do that with the clean.sh shell script.
+The IF function in POMP creates bake and stew files that are stored in output/bake. The advantage of keeping those files is that the expensive MLE calculations do not need to be run again when those files are already generated, but if the parameters change, they should be removed to generate new ones. Do that with the ```clean.sh``` shell script. Adding the ```all``` argument it will delete all the output files, including plots and parameters.

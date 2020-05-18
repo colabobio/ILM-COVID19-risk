@@ -73,17 +73,7 @@ void print_data() {
   }
 }
 
-void print_beta() {
-  double a0 = 0.1;
-  double a1 = 10.0;
-  double b0 = 0.1;
-  double b1 = 10.0;
-
-  // double a0 = 1.0;
-  // double a1 = 2.0;
-  // double b0 = 0.5;
-  // double b1 = 3.0;
-
+void print_beta(double a0, double a1, double b0, double b1) {
   for (int t = 0; t < max_t; t++) {
 
     printf("=======> time %d\n", t);
@@ -108,14 +98,19 @@ void print_beta() {
 }
 
 int main(int argc, char *argv[]) {
-  if ( argc != 2 ) { /* argc should be 2 for correct execution */
-    /* We print argv[0] assuming it is the program name */
+  if (argc < 2) { // argc should be at least 2 for correct execution
     printf("usage: %s directory\n", argv[0]);
   } else {
     int res = load_data(argv[1]);
     printf("Got %d\n", res);
     print_data();
-    // print_beta();
+    if (argc == 6) {
+      double a0 = strtod(argv[2], NULL);
+      double a1 = strtod(argv[3], NULL);
+      double b0 = strtod(argv[4], NULL);
+      double b1 = strtod(argv[5], NULL);
+      print_beta(a0, a1, b0, b1);
+    }    
     return 0;
   }
 }
