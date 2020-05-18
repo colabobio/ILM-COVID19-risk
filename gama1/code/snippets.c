@@ -1,6 +1,6 @@
 /* pomp C snippet file: snippets */
-/* Time: 2020-05-18 00:00:49.681 -0400 */
-/* Salt: CEDD4A40D2AA3B9B51A275A0 */
+/* Time: 2020-05-18 00:27:04.978 -0400 */
+/* Salt: B33780906C9E18F4F719FB0B */
 
 #include <pomp.h>
 #include <R_ext/Rdynload.h>
@@ -15,7 +15,7 @@ double calc_beta(double td, double a0, double a1, double b0, double b1) {
   if (indices == NULL) {
     FILE *file;
 
-    file = fopen("gama2/indices", "r");
+    file = fopen("gama1/indices", "r");
 
     int idx;
     while (fscanf(file, "%d", &idx) > 0) max_t++;
@@ -29,7 +29,7 @@ double calc_beta(double td, double a0, double a1, double b0, double b1) {
     }
     fclose(file);
 
-    file = fopen("gama2/contacts", "r");
+    file = fopen("gama1/contacts", "r");
     float val;
     while (fscanf(file, "%f", &val) > 0) num_v++;
     rewind(file);
