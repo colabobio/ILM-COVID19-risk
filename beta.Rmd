@@ -55,8 +55,7 @@ code_folder <- file.path(main_folder, "code")
 if (!dir.exists(code_folder)) dir.create(code_folder)
 file_name <- "snippets"
 
-prop_file = file.path(main_folder, "fast.properties")
-#prop_file = file.path(main_folder, "normal.properties")
+prop_file = file.path(main_folder, "beta.properties")
 prop <- read.properties(prop_file)
 ```
 
@@ -90,7 +89,7 @@ obs_data <- subset(obs_data, (time_start <= day & day <= time_end))
 
 free_param_names <- c("beta", "sigma", "gamma")
 free_param_box <- rbind(
-  beta = c(0, 5),
+  beta = c(as.numeric(prop$bounds_beta_min), as.numeric(prop$bounds_beta_max)),
   sigma = c(as.numeric(prop$bounds_sigma_min), as.numeric(prop$bounds_sigma_max)),
   gamma = c(as.numeric(prop$bounds_gamma_min), as.numeric(prop$bounds_gamma_max))
 )
@@ -205,7 +204,7 @@ num_filter_iter <- as.integer(prop$num_filter_iter)
 num_particles <- as.integer(prop$num_particles)
 num_replicates <- as.integer(prop$num_replicates)
 
-perturb_sizes <- list(beta=0.02,
+perturb_sizes <- list(beta=as.numeric(prop$perturb_size_beta),
                       sigma=as.numeric(prop$perturb_size_sigma),
                       gamma=as.numeric(prop$perturb_size_gamma))
 
@@ -432,11 +431,11 @@ mcap_cool_type <- prop$mcap_cool_type
 mcap_cool_frac <- as.numeric(prop$mcap_cool_frac)
 mcap_cool_frac_lastif <- as.numeric(prop$mcap_cool_frac_lastif)
 
-mcap_lambda <- c(beta=0.75,
+mcap_lambda <- c(beta=as.numeric(prop$mcap_lambda_beta),
                  sigma=as.numeric(prop$mcap_lambda_sigma),
                  gamma=as.numeric(prop$mcap_lambda_gamma))
 
-mcap_ngrid <- c(beta=1000,
+mcap_ngrid <- c(beta=as.numeric(prop$mcap_ngrid_beta),
                 sigma=as.numeric(prop$mcap_ngrid_sigma),
                 gamma=as.numeric(prop$mcap_ngrid_gamma))
 ```
