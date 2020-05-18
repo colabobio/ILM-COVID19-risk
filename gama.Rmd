@@ -388,6 +388,14 @@ theta
 # Simulation parameters
 
 num_sims <- as.integer(prop$num_sims)
+
+# Code to generate simulations with the ground truth parameters
+#true_params <- mle_params[which.max( mle_params[,log_idx] ), ]
+#true_params$a0 <- 0.5
+#true_params$a1 <- 1.5
+#true_params$b0 <- 0.5
+#true_params$b1 <- 0.8
+#true_params %>% extract(all_param_names) %>% unlist() -> theta
 ```
 
 ```{r}
