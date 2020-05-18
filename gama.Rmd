@@ -44,11 +44,12 @@ stopifnot(packageVersion("pomp")>="2")
 main_folder <- "./gama1"
 #main_folder <- "./gama2"
 
-output_folder <- file.path(main_folder, "output") 
+output_name <- "output"
+output_folder <- file.path(main_folder, output_name)
 if (!dir.exists(output_folder)) dir.create(output_folder)
-cooking_folder <- file.path(main_folder, "output", "bake")
+cooking_folder <- file.path(main_folder, output_name, "bake")
 if (!dir.exists(cooking_folder)) dir.create(cooking_folder)
-plotting_folder <- file.path(main_folder, "output", "plots")
+plotting_folder <- file.path(main_folder, output_name, "plots")
 if (!dir.exists(plotting_folder)) dir.create(plotting_folder)
 code_folder <- file.path(main_folder, "code")
 if (!dir.exists(code_folder)) dir.create(code_folder)
