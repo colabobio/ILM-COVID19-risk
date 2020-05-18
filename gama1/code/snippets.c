@@ -1,6 +1,6 @@
 /* pomp C snippet file: snippets */
-/* Time: 2020-05-18 00:27:04.978 -0400 */
-/* Salt: B33780906C9E18F4F719FB0B */
+/* Time: 2020-05-18 10:15:54.080 -0400 */
+/* Salt: E7CE1A507B394A863F5FD1B5 */
 
 #include <pomp.h>
 #include <R_ext/Rdynload.h>
@@ -15,7 +15,7 @@ double calc_beta(double td, double a0, double a1, double b0, double b1) {
   if (indices == NULL) {
     FILE *file;
 
-    file = fopen("gama1/indices", "r");
+    file = fopen("./gama1/indices", "r");
 
     int idx;
     while (fscanf(file, "%d", &idx) > 0) max_t++;
@@ -29,7 +29,7 @@ double calc_beta(double td, double a0, double a1, double b0, double b1) {
     }
     fclose(file);
 
-    file = fopen("gama1/contacts", "r");
+    file = fopen("./gama1/contacts", "r");
     float val;
     while (fscanf(file, "%f", &val) > 0) num_v++;
     rewind(file);
@@ -171,7 +171,7 @@ void __pomp_stepfn (double *__x, const double *__p, const int *__stateindex, con
 
   // Assigning the right number to the accumulation variable that's used
   // in the observation model is absolutely critical!!!!
-  C += trans[2];
+  C += trans[1];
  
 }
 
