@@ -37,7 +37,9 @@ stopifnot(packageVersion("pomp")>="2")
 # =============================================================================
 # Folders and properties
 
-output_name <- "output"
+prop <- read.properties(prop_file)
+
+output_name <- prop$output_name
 output_folder <- file.path(main_folder, output_name) 
 if (!dir.exists(output_folder)) dir.create(output_folder)
 cooking_folder <- file.path(main_folder, output_name, "bake")
@@ -47,8 +49,6 @@ if (!dir.exists(plotting_folder)) dir.create(plotting_folder)
 code_folder <- file.path(main_folder, "code")
 if (!dir.exists(code_folder)) dir.create(code_folder)
 file_name <- "snippets"
-
-prop <- read.properties(prop_file)
 
 # =============================================================================
 # Observed data
@@ -131,7 +131,7 @@ sir_step <- Csnippet("
   S += -trans[0];
   E += trans[0] - trans[1];
   I += trans[1] - trans[2];
-  R = pop - S - E - I;
+  R += trans[2];
 
   // Assigning the right number to the accumulation variable that's used
   // in the observation model is absolutely critical!!!!
