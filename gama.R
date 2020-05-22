@@ -77,17 +77,16 @@ time_step <- as.numeric(prop$time_step)
 obs_data <- subset(obs_data, (time_start <= day & day <= time_end))
 #ggplot(data=obs_data, aes(x=day, y=cases, group=1)) + geom_line()
 
-free_param_names <- c("a0", "a1", "b0", "b1", "sigma", "gamma")
+free_param_names <- c("a0", "ws", "wi", "sigma", "gamma")
 free_param_box <- rbind(
   a0 = c(as.numeric(prop$bounds_a0_min), as.numeric(prop$bounds_a0_max)),
-  a1 = c(as.numeric(prop$bounds_a1_min), as.numeric(prop$bounds_a1_max)),
-  b0 = c(as.numeric(prop$bounds_b0_min), as.numeric(prop$bounds_b0_max)),
-  b1 = c(as.numeric(prop$bounds_b1_min), as.numeric(prop$bounds_b1_max)),
+  ws = c(as.numeric(prop$bounds_ws_min), as.numeric(prop$bounds_ws_max)),
+  wi = c(as.numeric(prop$bounds_wi_min), as.numeric(prop$bounds_wi_max)),
   sigma = c(as.numeric(prop$bounds_sigma_min), as.numeric(prop$bounds_sigma_max)),
   gamma = c(as.numeric(prop$bounds_gamma_min), as.numeric(prop$bounds_gamma_max))
 )
 
-log_trans_params <- c("a0", "a1", "b0", "b1", "sigma", "gamma")
+log_trans_params <- c("a0", "ws", "wi", "sigma", "gamma")
 logit_trans_params <- c()
 
 fixed_param_names <- c("pop", "S_0", "E_0", "I_0", "R_0", "rho")
@@ -114,7 +113,7 @@ sir_step <- Csnippet("
   double foi;
   double rate[3], trans[3];
 
-  beta = calc_beta(t, a0, a1, b0, b1);
+  beta = calc_beta(t, a0, ws, wi);
 
   // expected force of infection
   foi = beta * I/pop;
@@ -158,7 +157,7 @@ dmeas <- Csnippet("
 ")
 
 extra <- Csnippet(gsub("MAIN_FOLDER", main_folder, "
-double calc_beta(double td, double a0, double a1, double b0, double b1) {
+double calc_beta(double td, double a0, double ws, double wi) {
   static int *indices = NULL;
   static double *contacts = NULL;
   static int max_t = 0;
@@ -208,7 +207,7 @@ double calc_beta(double td, double a0, double a1, double b0, double b1) {
     double y = contacts[idx++];
     for (int i = 0; i < ncont; i++) {
       double x = contacts[idx++];
-      double p = (a0 + a1 * x) * (b0 + b1 * y);
+      double p = a0 * (1 + ws * x) * (1 + wi * y);
       beta += 1 - exp(-p);
     }
     ninf++;
@@ -261,9 +260,8 @@ num_particles <- as.integer(prop$num_particles)
 num_replicates <- as.integer(prop$num_replicates)
 
 perturb_sizes <- list(a0=as.numeric(prop$perturb_size_a0),
-                      a1=as.numeric(prop$perturb_size_a1),
-                      b0=as.numeric(prop$perturb_size_b0),
-                      b1=as.numeric(prop$perturb_size_b1),
+                      ws=as.numeric(prop$perturb_size_ws),
+                      wi=as.numeric(prop$perturb_size_wi),
                       sigma=as.numeric(prop$perturb_size_sigma),
                       gamma=as.numeric(prop$perturb_size_gamma))
 
@@ -271,7 +269,7 @@ cool_frac <- as.numeric(prop$cool_frac)
 cool_type <- prop$cool_type
 
 # Variables to use in the scatterplot matrix showing the result of the IF search
-pair_vars <- ~loglik+a0+a1+b0+b1+sigma+gamma
+pair_vars <- ~loglik+a0+ws+wi+sigma+gamma
 
 # =============================================================================
 # Test run from single starting point in parameter space and no replicates
@@ -468,16 +466,14 @@ mcap_cool_frac <- as.numeric(prop$mcap_cool_frac)
 mcap_cool_frac_lastif <- as.numeric(prop$mcap_cool_frac_lastif)
 
 mcap_lambda <- c(a0=as.numeric(prop$mcap_lambda_a0),
-                 a1=as.numeric(prop$mcap_lambda_a1),
-                 b0=as.numeric(prop$mcap_lambda_b0),
-                 b1=as.numeric(prop$mcap_lambda_b1),
+                 ws=as.numeric(prop$mcap_lambda_ws),
+                 wi=as.numeric(prop$mcap_lambda_wi),
                  sigma=as.numeric(prop$mcap_lambda_sigma),
                  gamma=as.numeric(prop$mcap_lambda_gamma))
 
 mcap_ngrid <- c(a0=as.numeric(prop$mcap_ngrid_a0),
-                a1=as.numeric(prop$mcap_ngrid_a1),
-                b0=as.numeric(prop$mcap_ngrid_b0),
-                b1=as.numeric(prop$mcap_ngrid_b1),
+                ws=as.numeric(prop$mcap_ngrid_ws),
+                wi=as.numeric(prop$mcap_ngrid_wi),
                 sigma=as.numeric(prop$mcap_ngrid_sigma),
                 gamma=as.numeric(prop$mcap_ngrid_gamma))
 
