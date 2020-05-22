@@ -144,7 +144,7 @@ sir_step <- Csnippet("
   S += -trans[0];
   E += trans[0] - trans[1];
   I += trans[1] - trans[2];
-  R = pop - S - E - I;
+  R += trans[2];
 
   // Assigning the right number to the accumulation variable that's used
   // in the observation model is absolutely critical!!!!
