@@ -1,4 +1,6 @@
 **/.DS_Store
+**/*.rda
+**/*.rds
 **/.ipynb_checkpoints
 **/.Rhistory
 **/*.dylib

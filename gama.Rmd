@@ -41,11 +41,13 @@ stopifnot(packageVersion("pomp")>="2")
 ```{r}
 # Folders and properties
 
-#main_folder <- "./gama1"
-main_folder <- "./gama2"
+main_folder <- "./gama3"
 
-#output_name <- "output"
-output_name <- "output_fast"
+prop_file = file.path(main_folder, "fast.properties")
+#prop_file = file.path(main_folder, "normal.properties")
+prop <- read.properties(prop_file)
+
+output_name <- prop$output_name
 output_folder <- file.path(main_folder, output_name)
 if (!dir.exists(output_folder)) dir.create(output_folder)
 cooking_folder <- file.path(main_folder, output_name, "bake")
@@ -55,10 +57,6 @@ if (!dir.exists(plotting_folder)) dir.create(plotting_folder)
 code_folder <- file.path(main_folder, "code")
 if (!dir.exists(code_folder)) dir.create(code_folder)
 file_name <- "snippets"
-
-prop_file = file.path(main_folder, "fast.properties")
-#prop_file = file.path(main_folder, "normal.properties")
-prop <- read.properties(prop_file)
 ```
 
 ```{r}
@@ -376,10 +374,30 @@ mle_params <- arrange(rbind(res_global), -loglik)
 write.csv(mle_params, file=file.path(output_folder, "param_mle_global_search.csv"), row.names=FALSE, na="")
 
 log_idx <- length(mle_params) - 1
-mle_global <- mle_params[which.max( mle_params[,log_idx] ), ]
+mle_global <- mle_params[which.max(mle_params[,log_idx]),]
 mle_global %>% extract(all_param_names) %>% unlist() -> theta
 write.csv(theta, file=file.path(output_folder, "param_point_estimates.csv"), row.names=TRUE, na="")
 theta
+```
+
+```{r}
+# Calculate mean and standard deviatio of MLEs over the top MLEs
+mle_table <- read.csv(file.path(output_folder, "param_mle_global_search.csv"))
+mle_sorted <- mle_table[order(-mle_table$loglik),]
+
+n <- as.integer(prop$num_mean_sd)
+mle_mean_sd <- NULL
+for (p in free_param_names) {
+  p_mean <- mean(mle_sorted[[p]][1:n])
+  p_sd <- sd(mle_sorted[[p]][1:n])
+  if (is.null(mle_mean_sd)) {
+    mle_mean_sd <- data.frame("name" = c(p), "mean" = c(p_mean), "sd" = c(p_sd), stringsAsFactors = FALSE)  
+  } else {
+    mle_mean_sd <- rbind(mle_mean_sd, c(p, p_mean, p_sd))
+  }  
+  print(sprintf("%s %0.2f %0.2f", p, p_mean, p_sd))
+}
+write.csv(mle_mean_sd, file=file.path(output_folder, "param_mean_sdev.csv"), row.names=FALSE, na="")
 ```
 
 4. SIMULATIONS USING THE POINT ESTIMATES
@@ -504,6 +522,8 @@ Monte Carlo profile (MCAP) confidence intervals: https://royalsocietypublishing.
 
 ```{r}
 # MCAP settings
+
+calculate_cis <- as.logical(prop$calculate_cis)
 
 mcap_confidence <- as.numeric(prop$mcap_confidence)
 
@@ -633,36 +653,38 @@ plik <- function(pname, pval0, pval1) {
 ```{r}
 # Iterate over all the free parameters in the model to calculate their CIs... may take a while!
 
-par_names <- row.names(free_param_box)
-for (i in 1:nrow(free_param_box)) {
-  name <- par_names[i]  
-  print(sprintf("Calculating CI for %s...", name))
+if (calculate_cis) {
+  par_names <- row.names(free_param_box)
+  for (i in 1:nrow(free_param_box)) {
+    name <- par_names[i]  
+    print(sprintf("Calculating CI for %s...", name))
+    
+    row <- free_param_box[i,]
+    mdl <- plik(pname=name, pval0=row[1], pval1=row[2])
+    
+    par_range <- seq(row[1], row[2], length=mcap_profdes_len)
+    log_likelihoods <- c()
+    for (val in par_range) {
+      likelihoods <- subset(mdl, abs(mdl[[name]]-val)<1)$loglik
+      if (length(likelihoods) == 0) next
+      log_likelihoods <- c(log_likelihoods, max(likelihoods))
+    }
+    
+    x <- mcap(log_likelihoods, par_range, mcap_confidence, mcap_lambda[[i]], mcap_ngrid[[i]])
+    if (i == 1) {
+      cis <- data.frame("name" = c(name), "x0" = c(x$ci[1]), "x1" = c(x$ci[2]), stringsAsFactors = FALSE)  
+    } else {
+      cis <- rbind(cis, c(name, x$ci[1], x$ci[2]))  
+    }
+    print(sprintf("%s %0.2f %0.2f", name, x$ci[1], x$ci[2]))
   
-  row <- free_param_box[i,]
-  mdl <- plik(pname=name, pval0=row[1], pval1=row[2])
-  
-  par_range <- seq(row[1], row[2], length=mcap_profdes_len)
-  log_likelihoods <- c()
-  for (val in par_range) {
-    likelihoods <- subset(mdl, abs(mdl[[name]]-val)<1)$loglik
-    if (length(likelihoods) == 0) next
-    log_likelihoods <- c(log_likelihoods, max(likelihoods))
+    ggplot(x$fit, aes(parameter, quadratic)) + geom_line() + 
+      geom_vline(xintercept=c(x$ci[1], x$ci[2]), linetype=4, colour='red') +
+      geom_point(data = data.frame('parameters'=par_range, 'loglik'=log_likelihoods), 
+                 aes(parameters, log_likelihoods)) 
+    ggsave(file.path(plotting_folder, paste("5-", name, "_ci.pdf", sep="")))
   }
   
-  x <- mcap(log_likelihoods, par_range, mcap_confidence, mcap_lambda[[i]], mcap_ngrid[[i]])
-  if (i == 1) {
-    cis <- data.frame("name" = c(name), "x0" = c(x$ci[1]), "x1" = c(x$ci[2]), stringsAsFactors = FALSE)  
-  } else {
-    cis <- rbind(cis, c(name, x$ci[1], x$ci[2]))  
-  }
-  print(sprintf("%s %0.2f %0.2f", name, x$ci[1], x$ci[2]))
-
-  ggplot(x$fit, aes(parameter, quadratic)) + geom_line() + 
-    geom_vline(xintercept=c(x$ci[1], x$ci[2]), linetype=4, colour='red') +
-    geom_point(data = data.frame('parameters'=par_range, 'loglik'=log_likelihoods), 
-               aes(parameters, log_likelihoods)) 
-  ggsave(file.path(plotting_folder, paste("5-", name, "_ci.pdf", sep="")))
+  write.csv(cis, file=file.path(output_folder, "param_confidence_intervals.csv"), row.names=FALSE, na="")
 }
-
-write.csv(cis, file=file.path(output_folder, "param_confidence_intervals.csv"), row.names=FALSE, na="")
 ```
