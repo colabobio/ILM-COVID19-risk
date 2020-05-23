@@ -1,12 +1,12 @@
 /* pomp C snippet file: snippets */
-/* Time: 2020-05-18 22:34:15.582 -0400 */
-/* Salt: 23A503F9DE6FF5EEC995FEF4 */
+/* Time: 2020-05-23 18:59:32.611 -0400 */
+/* Salt: 0BAB28E4A1653F4DF86F0B0C */
 
 #include <pomp.h>
 #include <R_ext/Rdynload.h>
 
 
-double calc_beta(double td, double a0, double a1, double b0, double b1) {
+double calc_beta(double td, double a00, double a01, double a10, double a11) {
   static int *indices = NULL;
   static double *contacts = NULL;
   static int max_t = 0;
@@ -56,7 +56,7 @@ double calc_beta(double td, double a0, double a1, double b0, double b1) {
     double y = contacts[idx++];
     for (int i = 0; i < ncont; i++) {
       double x = contacts[idx++];
-      double p = (a0 + a1 * x) * (b0 + b1 * y);
+      double p = a00 + a01 * y + a10 *x + a11 * x * y;
       beta += 1 - exp(-p);
     }
     ninf++;
@@ -74,18 +74,18 @@ double calc_beta(double td, double a0, double a1, double b0, double b1) {
 
 
 /* C snippet: 'rinit' */
-#define a0		(__p[__parindex[0]])
-#define a1		(__p[__parindex[1]])
-#define b0		(__p[__parindex[2]])
-#define b1		(__p[__parindex[3]])
-#define sigma		(__p[__parindex[4]])
-#define gamma		(__p[__parindex[5]])
-#define pop		(__p[__parindex[6]])
-#define S_0		(__p[__parindex[7]])
-#define E_0		(__p[__parindex[8]])
-#define I_0		(__p[__parindex[9]])
-#define R_0		(__p[__parindex[10]])
-#define rho		(__p[__parindex[11]])
+#define a00		(__p[__parindex[0]])
+#define a01		(__p[__parindex[1]])
+#define a10		(__p[__parindex[2]])
+#define a11		(__p[__parindex[3]])
+#define pop		(__p[__parindex[4]])
+#define S_0		(__p[__parindex[5]])
+#define E_0		(__p[__parindex[6]])
+#define I_0		(__p[__parindex[7]])
+#define R_0		(__p[__parindex[8]])
+#define rho		(__p[__parindex[9]])
+#define sigma		(__p[__parindex[10]])
+#define gamma		(__p[__parindex[11]])
 #define S		(__x[__stateindex[0]])
 #define E		(__x[__stateindex[1]])
 #define I		(__x[__stateindex[2]])
@@ -106,18 +106,18 @@ void __pomp_rinit (double *__x, const double *__p, double t, const int *__statei
  
 }
 
-#undef a0
-#undef a1
-#undef b0
-#undef b1
-#undef sigma
-#undef gamma
+#undef a00
+#undef a01
+#undef a10
+#undef a11
 #undef pop
 #undef S_0
 #undef E_0
 #undef I_0
 #undef R_0
 #undef rho
+#undef sigma
+#undef gamma
 #undef S
 #undef E
 #undef I
@@ -125,18 +125,18 @@ void __pomp_rinit (double *__x, const double *__p, double t, const int *__statei
 #undef C
 
 /* C snippet: 'step.fn' */
-#define a0		(__p[__parindex[0]])
-#define a1		(__p[__parindex[1]])
-#define b0		(__p[__parindex[2]])
-#define b1		(__p[__parindex[3]])
-#define sigma		(__p[__parindex[4]])
-#define gamma		(__p[__parindex[5]])
-#define pop		(__p[__parindex[6]])
-#define S_0		(__p[__parindex[7]])
-#define E_0		(__p[__parindex[8]])
-#define I_0		(__p[__parindex[9]])
-#define R_0		(__p[__parindex[10]])
-#define rho		(__p[__parindex[11]])
+#define a00		(__p[__parindex[0]])
+#define a01		(__p[__parindex[1]])
+#define a10		(__p[__parindex[2]])
+#define a11		(__p[__parindex[3]])
+#define pop		(__p[__parindex[4]])
+#define S_0		(__p[__parindex[5]])
+#define E_0		(__p[__parindex[6]])
+#define I_0		(__p[__parindex[7]])
+#define R_0		(__p[__parindex[8]])
+#define rho		(__p[__parindex[9]])
+#define sigma		(__p[__parindex[10]])
+#define gamma		(__p[__parindex[11]])
 #define S		(__x[__stateindex[0]])
 #define E		(__x[__stateindex[1]])
 #define I		(__x[__stateindex[2]])
@@ -150,7 +150,7 @@ void __pomp_stepfn (double *__x, const double *__p, const int *__stateindex, con
   double foi;
   double rate[3], trans[3];
 
-  beta = calc_beta(t, a0, a1, b0, b1);
+  beta = calc_beta(t, a00, a01, a10, a11);
 
   // expected force of infection
   foi = beta * I/pop;
@@ -175,18 +175,18 @@ void __pomp_stepfn (double *__x, const double *__p, const int *__stateindex, con
  
 }
 
-#undef a0
-#undef a1
-#undef b0
-#undef b1
-#undef sigma
-#undef gamma
+#undef a00
+#undef a01
+#undef a10
+#undef a11
 #undef pop
 #undef S_0
 #undef E_0
 #undef I_0
 #undef R_0
 #undef rho
+#undef sigma
+#undef gamma
 #undef S
 #undef E
 #undef I
@@ -194,18 +194,18 @@ void __pomp_stepfn (double *__x, const double *__p, const int *__stateindex, con
 #undef C
 
 /* C snippet: 'rmeasure' */
-#define a0		(__p[__parindex[0]])
-#define a1		(__p[__parindex[1]])
-#define b0		(__p[__parindex[2]])
-#define b1		(__p[__parindex[3]])
-#define sigma		(__p[__parindex[4]])
-#define gamma		(__p[__parindex[5]])
-#define pop		(__p[__parindex[6]])
-#define S_0		(__p[__parindex[7]])
-#define E_0		(__p[__parindex[8]])
-#define I_0		(__p[__parindex[9]])
-#define R_0		(__p[__parindex[10]])
-#define rho		(__p[__parindex[11]])
+#define a00		(__p[__parindex[0]])
+#define a01		(__p[__parindex[1]])
+#define a10		(__p[__parindex[2]])
+#define a11		(__p[__parindex[3]])
+#define pop		(__p[__parindex[4]])
+#define S_0		(__p[__parindex[5]])
+#define E_0		(__p[__parindex[6]])
+#define I_0		(__p[__parindex[7]])
+#define R_0		(__p[__parindex[8]])
+#define rho		(__p[__parindex[9]])
+#define sigma		(__p[__parindex[10]])
+#define gamma		(__p[__parindex[11]])
 #define S		(__x[__stateindex[0]])
 #define E		(__x[__stateindex[1]])
 #define I		(__x[__stateindex[2]])
@@ -220,18 +220,18 @@ void __pomp_rmeasure (double *__y, const double *__x, const double *__p, const i
  
 }
 
-#undef a0
-#undef a1
-#undef b0
-#undef b1
-#undef sigma
-#undef gamma
+#undef a00
+#undef a01
+#undef a10
+#undef a11
 #undef pop
 #undef S_0
 #undef E_0
 #undef I_0
 #undef R_0
 #undef rho
+#undef sigma
+#undef gamma
 #undef S
 #undef E
 #undef I
@@ -240,18 +240,18 @@ void __pomp_rmeasure (double *__y, const double *__x, const double *__p, const i
 #undef cases
 
 /* C snippet: 'dmeasure' */
-#define a0		(__p[__parindex[0]])
-#define a1		(__p[__parindex[1]])
-#define b0		(__p[__parindex[2]])
-#define b1		(__p[__parindex[3]])
-#define sigma		(__p[__parindex[4]])
-#define gamma		(__p[__parindex[5]])
-#define pop		(__p[__parindex[6]])
-#define S_0		(__p[__parindex[7]])
-#define E_0		(__p[__parindex[8]])
-#define I_0		(__p[__parindex[9]])
-#define R_0		(__p[__parindex[10]])
-#define rho		(__p[__parindex[11]])
+#define a00		(__p[__parindex[0]])
+#define a01		(__p[__parindex[1]])
+#define a10		(__p[__parindex[2]])
+#define a11		(__p[__parindex[3]])
+#define pop		(__p[__parindex[4]])
+#define S_0		(__p[__parindex[5]])
+#define E_0		(__p[__parindex[6]])
+#define I_0		(__p[__parindex[7]])
+#define R_0		(__p[__parindex[8]])
+#define rho		(__p[__parindex[9]])
+#define sigma		(__p[__parindex[10]])
+#define gamma		(__p[__parindex[11]])
 #define S		(__x[__stateindex[0]])
 #define E		(__x[__stateindex[1]])
 #define I		(__x[__stateindex[2]])
@@ -267,18 +267,18 @@ void __pomp_dmeasure (double *__lik, const double *__y, const double *__x, const
  
 }
 
-#undef a0
-#undef a1
-#undef b0
-#undef b1
-#undef sigma
-#undef gamma
+#undef a00
+#undef a01
+#undef a10
+#undef a11
 #undef pop
 #undef S_0
 #undef E_0
 #undef I_0
 #undef R_0
 #undef rho
+#undef sigma
+#undef gamma
 #undef S
 #undef E
 #undef I
@@ -288,126 +288,122 @@ void __pomp_dmeasure (double *__lik, const double *__y, const double *__x, const
 #undef lik
 
 /* C snippet: 'toEst' */
-#define a0		(__p[__parindex[0]])
-#define a1		(__p[__parindex[1]])
-#define b0		(__p[__parindex[2]])
-#define b1		(__p[__parindex[3]])
-#define sigma		(__p[__parindex[4]])
-#define gamma		(__p[__parindex[5]])
-#define pop		(__p[__parindex[6]])
-#define S_0		(__p[__parindex[7]])
-#define E_0		(__p[__parindex[8]])
-#define I_0		(__p[__parindex[9]])
-#define R_0		(__p[__parindex[10]])
-#define rho		(__p[__parindex[11]])
-#define T_a0		(__pt[__parindex[0]])
-#define T_a1		(__pt[__parindex[1]])
-#define T_b0		(__pt[__parindex[2]])
-#define T_b1		(__pt[__parindex[3]])
-#define T_sigma		(__pt[__parindex[4]])
-#define T_gamma		(__pt[__parindex[5]])
-#define T_pop		(__pt[__parindex[6]])
-#define T_S_0		(__pt[__parindex[7]])
-#define T_E_0		(__pt[__parindex[8]])
-#define T_I_0		(__pt[__parindex[9]])
-#define T_R_0		(__pt[__parindex[10]])
-#define T_rho		(__pt[__parindex[11]])
+#define a00		(__p[__parindex[0]])
+#define a01		(__p[__parindex[1]])
+#define a10		(__p[__parindex[2]])
+#define a11		(__p[__parindex[3]])
+#define pop		(__p[__parindex[4]])
+#define S_0		(__p[__parindex[5]])
+#define E_0		(__p[__parindex[6]])
+#define I_0		(__p[__parindex[7]])
+#define R_0		(__p[__parindex[8]])
+#define rho		(__p[__parindex[9]])
+#define sigma		(__p[__parindex[10]])
+#define gamma		(__p[__parindex[11]])
+#define T_a00		(__pt[__parindex[0]])
+#define T_a01		(__pt[__parindex[1]])
+#define T_a10		(__pt[__parindex[2]])
+#define T_a11		(__pt[__parindex[3]])
+#define T_pop		(__pt[__parindex[4]])
+#define T_S_0		(__pt[__parindex[5]])
+#define T_E_0		(__pt[__parindex[6]])
+#define T_I_0		(__pt[__parindex[7]])
+#define T_R_0		(__pt[__parindex[8]])
+#define T_rho		(__pt[__parindex[9]])
+#define T_sigma		(__pt[__parindex[10]])
+#define T_gamma		(__pt[__parindex[11]])
 
 void __pomp_to_trans (double *__pt, const double *__p, const int *__parindex)
 {
- 	T_a0 = log(a0);
-	T_a1 = log(a1);
-	T_b0 = log(b0);
-	T_b1 = log(b1);
-	T_sigma = log(sigma);
-	T_gamma = log(gamma); 
+ 	T_a00 = log(a00);
+	T_a01 = log(a01);
+	T_a10 = log(a10);
+	T_a11 = log(a11); 
 }
 
-#undef a0
-#undef a1
-#undef b0
-#undef b1
-#undef sigma
-#undef gamma
+#undef a00
+#undef a01
+#undef a10
+#undef a11
 #undef pop
 #undef S_0
 #undef E_0
 #undef I_0
 #undef R_0
 #undef rho
-#undef T_a0
-#undef T_a1
-#undef T_b0
-#undef T_b1
-#undef T_sigma
-#undef T_gamma
+#undef sigma
+#undef gamma
+#undef T_a00
+#undef T_a01
+#undef T_a10
+#undef T_a11
 #undef T_pop
 #undef T_S_0
 #undef T_E_0
 #undef T_I_0
 #undef T_R_0
 #undef T_rho
+#undef T_sigma
+#undef T_gamma
 
 /* C snippet: 'fromEst' */
-#define a0		(__p[__parindex[0]])
-#define a1		(__p[__parindex[1]])
-#define b0		(__p[__parindex[2]])
-#define b1		(__p[__parindex[3]])
-#define sigma		(__p[__parindex[4]])
-#define gamma		(__p[__parindex[5]])
-#define pop		(__p[__parindex[6]])
-#define S_0		(__p[__parindex[7]])
-#define E_0		(__p[__parindex[8]])
-#define I_0		(__p[__parindex[9]])
-#define R_0		(__p[__parindex[10]])
-#define rho		(__p[__parindex[11]])
-#define T_a0		(__pt[__parindex[0]])
-#define T_a1		(__pt[__parindex[1]])
-#define T_b0		(__pt[__parindex[2]])
-#define T_b1		(__pt[__parindex[3]])
-#define T_sigma		(__pt[__parindex[4]])
-#define T_gamma		(__pt[__parindex[5]])
-#define T_pop		(__pt[__parindex[6]])
-#define T_S_0		(__pt[__parindex[7]])
-#define T_E_0		(__pt[__parindex[8]])
-#define T_I_0		(__pt[__parindex[9]])
-#define T_R_0		(__pt[__parindex[10]])
-#define T_rho		(__pt[__parindex[11]])
+#define a00		(__p[__parindex[0]])
+#define a01		(__p[__parindex[1]])
+#define a10		(__p[__parindex[2]])
+#define a11		(__p[__parindex[3]])
+#define pop		(__p[__parindex[4]])
+#define S_0		(__p[__parindex[5]])
+#define E_0		(__p[__parindex[6]])
+#define I_0		(__p[__parindex[7]])
+#define R_0		(__p[__parindex[8]])
+#define rho		(__p[__parindex[9]])
+#define sigma		(__p[__parindex[10]])
+#define gamma		(__p[__parindex[11]])
+#define T_a00		(__pt[__parindex[0]])
+#define T_a01		(__pt[__parindex[1]])
+#define T_a10		(__pt[__parindex[2]])
+#define T_a11		(__pt[__parindex[3]])
+#define T_pop		(__pt[__parindex[4]])
+#define T_S_0		(__pt[__parindex[5]])
+#define T_E_0		(__pt[__parindex[6]])
+#define T_I_0		(__pt[__parindex[7]])
+#define T_R_0		(__pt[__parindex[8]])
+#define T_rho		(__pt[__parindex[9]])
+#define T_sigma		(__pt[__parindex[10]])
+#define T_gamma		(__pt[__parindex[11]])
 
 void __pomp_from_trans (double *__p, const double *__pt, const int *__parindex)
 {
- 	a0 = exp(T_a0);
-	a1 = exp(T_a1);
-	b0 = exp(T_b0);
-	b1 = exp(T_b1);
-	sigma = exp(T_sigma);
-	gamma = exp(T_gamma); 
+ 	a00 = exp(T_a00);
+	a01 = exp(T_a01);
+	a10 = exp(T_a10);
+	a11 = exp(T_a11); 
 }
 
-#undef a0
-#undef a1
-#undef b0
-#undef b1
-#undef sigma
-#undef gamma
+#undef a00
+#undef a01
+#undef a10
+#undef a11
 #undef pop
 #undef S_0
 #undef E_0
 #undef I_0
 #undef R_0
 #undef rho
-#undef T_a0
-#undef T_a1
-#undef T_b0
-#undef T_b1
-#undef T_sigma
-#undef T_gamma
+#undef sigma
+#undef gamma
+#undef T_a00
+#undef T_a01
+#undef T_a10
+#undef T_a11
 #undef T_pop
 #undef T_S_0
 #undef T_E_0
 #undef T_I_0
 #undef T_R_0
 #undef T_rho
+#undef T_sigma
+#undef T_gamma
 
 static int __pomp_load_stack = 0;
 
