@@ -5,10 +5,13 @@ parser.add_argument('-m', '--main_dir', nargs=1, default=['./gama'],
                     help='Directory containing GAMA data')
 parser.add_argument('-o', '--output_dir', nargs=1, default=['./output'],
                     help='Sub-directory containing output')
+parser.add_argument("-n", "--num_values", type=int, nargs=1, default=[10],
+                    help="Numbr of likelihood values to use in mean calculation")
 args = parser.parse_args()
 
 main_dir = args.main_dir[0]
 output_dir = args.output_dir[0]
+num_values = args.num_values[0]
 
 param_file = os.path.join(main_dir, "parameter_values.txt")
 
@@ -88,4 +91,23 @@ mm_b0b1 = 0.5 * (m1_b0b1 + m2_b0b1)
 
 print("R1+R2) a0/a1=%.3f point=%.3f mean=%.3f" % (tr_a0a1, pm_a0a1, mm_a0a1))
 print("R1+R2) b0/b1=%.3f point=%.3f mean=%.3f" % (tr_b0b1, pm_b0b1, mm_b0b1))
+
+print("============================")
+
+import pandas as pd
+import numpy as np
+
+search_file = os.path.join(main_dir, output_dir, "param_mle_global_search.csv")
+df = pd.read_csv(search_file)
+df = df.sort_values(['loglik'], ascending=[False]).head(num_values)
+df['a0a1_1'] = df['a01'] / df['a11']
+df['a0a1_2'] = df['a00'] / df['a10']
+df['b0b1_1'] = df['a00'] / df['a01']
+df['b0b1_2'] = df['a10'] / df['a11']
+
+raw_a0a1 = np.concatenate((np.array(df['a0a1_1']), np.array(df['a0a1_2'])))
+raw_b0b1 = np.concatenate((np.array(df['b0b1_1']), np.array(df['b0b1_2'])))
+
+print("a0/a1=%.3f - MLE mean=%.3f std=%.3f" % (tr_a0a1, np.mean(raw_a0a1), np.std(raw_a0a1)))
+print("b0/b1=%.3f - MLE mean=%.3f std=%.3f" % (tr_b0b1, np.mean(raw_b0b1), np.std(raw_b0b1)))
 
