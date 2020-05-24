@@ -60,5 +60,32 @@ with open(mean_mle_file, 'r') as f:
 
 #print(mean_a00, mean_a01, mean_a10, mean_a11)
 
-print("T=%.3f P=%.3f M=%.3f" % (true_b0/true_b1, point_a00/point_a01, mean_a00/mean_a01))
-print("T=%.3f P=%.3f M=%.3f" % (true_a0/true_a1, point_a01/point_a11, mean_a01/mean_a11))
+tr_a0a1 = true_a0/true_a1
+tr_b0b1 = true_b0/true_b1
+
+p1_a0a1 = point_a01/point_a11
+p2_a0a1 = point_a00/point_a10
+
+m1_a0a1 = mean_a01/mean_a11
+m2_a0a1 = mean_a00/mean_a10
+
+p1_b0b1 = point_a00/point_a01
+p2_b0b1 = point_a10/point_a11
+
+m1_b0b1 = mean_a00/mean_a01
+m2_b0b1 = mean_a10/mean_a11
+
+print("R1) a0/a1=%.3f point=%.3f mean=%.3f" % (tr_a0a1, p1_a0a1, m1_a0a1))
+print("R2) a0/a1=%.3f point=%.3f mean=%.3f" % (tr_a0a1, p2_a0a1, m2_a0a1))
+print("R1) b0/b1=%.3f point=%.3f mean=%.3f" % (tr_b0b1, p1_b0b1, m1_b0b1))
+print("R2) b0/b1=%.3f point=%.3f mean=%.3f" % (tr_b0b1, p2_b0b1, m2_b0b1))
+
+pm_a0a1 = 0.5 * (p1_a0a1 + p2_a0a1)
+mm_a0a1 = 0.5 * (m1_a0a1 + m2_a0a1)
+
+pm_b0b1 = 0.5 * (p1_b0b1 + p2_b0b1)
+mm_b0b1 = 0.5 * (m1_b0b1 + m2_b0b1)
+
+print("R1+R2) a0/a1=%.3f point=%.3f mean=%.3f" % (tr_a0a1, pm_a0a1, mm_a0a1))
+print("R1+R2) b0/b1=%.3f point=%.3f mean=%.3f" % (tr_b0b1, pm_b0b1, mm_b0b1))
+
