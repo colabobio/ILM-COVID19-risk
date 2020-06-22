@@ -1,0 +1,10 @@
+Number of predictions  : 7360
+Number of infected     : 6656
+Percentage of infected : 90.43
+
+Measures of performance
+AUC           : 0.57 (0.56, 0.59)
+Brier         : 0.25
+Accuracy      : 0.76
+Sensitivity   : 0.81
+Specificity   : 0.28
