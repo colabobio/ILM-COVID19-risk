@@ -23,6 +23,10 @@ sorting=none
 ]{biblatex}
 \addbibresource{ilmrisk.bib}
 
+%% Bibliography options
+% \usepackage[numbers,square]{natbib}
+% \bibliographystyle{unsrtnat}
+
 \graphicspath{ {./images/} }
 
 \title{Individual-level Modeling of COVID-19 Epidemic Risk}
@@ -394,7 +398,7 @@ We assume the mean latent and infectious times to be known, and we can estimate 
 
 \begin{figure} % picture
   \centering
-  \includegraphics[scale=0.4]{Figure-1.pdf}
+  \includegraphics[scale=0.4]{Figure-1.png}
   \caption{Result of MLE with POMP on synthetic data generated with GAMA: (A) Curve of new infected cases over time. (B) Scatterplot matrix showing all the initial points (gray) and final (red) points in parameter space from the MLE runs. (C) GAMA curve (blue) and 9 simulated curves (red) generated with the MLE parameters. (D) Range covered between the 5 and 95 percentiles from 100 simulated curves using the MLE parameters. }
   \label{fig:fig1}
 \end{figure}
@@ -403,7 +407,7 @@ An issue we encountered with the first round of MLE runs is that, as the ABM sim
 
 \begin{figure} % picture
   \centering
-  \includegraphics[scale=0.4]{Figure-2.pdf}
+  \includegraphics[scale=0.4]{Figure-2.png}
   \caption{Range of synthetic epidemic data used to fit the parameters. (A) GAMA curve (blue) and 9 simulated curves (red) generated with the resulting MLE parameters. (B) Range covered between the 5 and 95 percentiles from 100 simulated curves using the MLE parameters. }
   \label{fig:fig2}
 \end{figure}
@@ -440,7 +444,7 @@ The ground truth values for the $c_{00}$, $c_{01}$, $c_{10}$, and $c_{11}$ param
 
 \begin{figure} % picture
   \centering
-  \includegraphics[scale=0.5]{Figure-3.pdf}
+  \includegraphics[scale=0.5]{Figure-3.png}
   \caption{Plots representing the standard deviation of the top 10 MLEs for each parameter as an error bar. The red circle indicates the true value of the parameter. All values are scaled to the mean MLE for each parameter.}
   \label{fig:fig3}
 \end{figure}
@@ -512,7 +516,7 @@ The area under the receiver characteristic curve (AUC), the 95\% confidence inte
 
 \begin{figure} % picture
   \centering
-  \includegraphics[scale=0.8]{Figure-4.pdf}
+  \includegraphics[scale=0.8]{Figure-4.png}
   \caption{Receiver Operating Characteristic (ROC) Curve for the infection predictor based on equation \eqref{eq:14}, generated for the 3 parameter sets considered in the paper}
   \label{fig:fig4}
 \end{figure}
@@ -521,7 +525,7 @@ Finally, we run ABM simulations where the risk values where used to quarantine f
 
 \begin{figure} % picture
   \centering
-  \includegraphics[scale=0.4]{Figure-5.pdf}
+  \includegraphics[scale=0.4]{Figure-5.png}
   \caption{Plot of new cases for the three parameter sets (A: set 1, B: set 2, C: set 3), under three intervention scenarios: no quarantine (blue curve), risk-based quarantine with 4 day delay (orange curve), and risk-based quarantine with instant availability of infectious status of contacts.}
   \label{fig:fig5}
 \end{figure}
@@ -530,8 +534,11 @@ Finally, we run ABM simulations where the risk values where used to quarantine f
 
 We constructed an statistical inference framework that allows to obtain individual-level epidemic parameters by applying MLE to population-level case data. We tested this framework using an agent-based model to generate epidemic data resolved at the individual level. As part of this framework, we defined an individual-level epidemic risk model that depends on data such as demographics, medical condition, self-reported symptoms, and contact tracing information. These models could be trained on aggregate data provided by consenting users of a mobile app, for example, and then evaluated locally by the rest of the users. These models could also incorporate additional data, such as spacial random effects. The initial simulation experiments are promising and suggest that is possible to: (1) obtain good estimates for the individual-level parameters by applying MLE on the population level data, (2)  predict who is infected and who is not using the individual-level risks, and (3) carry out interventions based on the individual-level risks, such as quarantine, that could help in lowering the peak of the epidemic, i.e.: “flattening the curve”. However, this work in in its initial stages and has several limitations. First of all, the individual-level models we considered so far are very simple, including only two somewhat artificial covariates (immune and symptomatic levels). Secondly, data to train the models was obtained completely from simulated experiments, thus, we need to extend to and validate on real data. Third, our risk calculation requires knowledge on confirmed cases in order to determine exposure events, which might not be readily available or accessible. Other approaches \cite{sphinxteam, Alsdurf2020} are based on estimating the probabilities of all possible states an individual can be in (susceptible, infected, recovered) based on the available information (symptoms, tests, contacts, etc) and then having this information be shared across the individuals through a mobile app in order to update the probabilities as new information is obtained. Our approach has the advantage of being simpler, but could also incorporate some of these ideas to lift the requirement of exact infectious states to be known in advance to the calculation of the risks score. We envision the computational framework presented in this work as the basis for a system that could be used to estimate risks of infection for diseases other than COVID-19.
 
+%%%%%%%%%%%%%%   Bibliography   %%%%%%%%%%%%%%
 % \bibliographystyle{unsrt}
-% \bibliography{references}
+% \bibliography{ilmrisk}
+% \normalsize
+% \bibliography{ilmrisk}
 \printbibliography
 
 \end{document}
