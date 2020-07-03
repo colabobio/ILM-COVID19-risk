@@ -1,0 +1,5 @@
+parameter,value
+A0,1.0
+A1,2.0
+B0,1.0
+B1,1.0
