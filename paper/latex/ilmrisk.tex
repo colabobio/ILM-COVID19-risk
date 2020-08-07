@@ -91,33 +91,31 @@ The structure of this article is as follows. In Section 2, the formula for indiv
 
 \subsection{Individual-level Models}
 
-In this section, we present the general form of the epidemic ILM based on \cite{Deardon2010} where the heterogeneity of infectious disease transmissions are allowed at the individual-level. We denote the set of individuals who are susceptible, infectious, or removed at time t as $S(t)$, $I(t)$, or $R(t)$ respectively. Note, for given $t$, $S(t)$, $I(t)$, and $R(t)$ are mutually exclusive. Here, we assume time is discretized so that time point $t$, for $t=1, 2, ..., \infty$ represents a continuous time interval $[t, t + 1)$.
-
-Let $P(i, t)$ be the probability of a susceptible individual i being infected at time t. Then a general form of the ILM, without geography dependency, is given as:
+We adopt the general ILM formalism described by Deardon et al \cite{Deardon2010}. In these models, each individual at each time $t$ can be in one of three states: susceptible, infected, or recovered, denoted $S(t)$, $I(t)$, or $R(t)$ respectively. Furthermore, time is discretized so that $t$ represents a time interval $[t, t + 1)$. The probability of a susceptible individual $i$ being infected at time t is expressed as follows:
 
 \begin{equation}
 P(i, t)=1-\exp\big[ \big( -\Omega_{S}(i) \sum\limits_{j \in C(i, t)} \Omega_{T}(j) \kappa(i, j, t)\big) - \epsilon(i, t)\big]
 \end{equation}
 
-where $C(i, t)$ is the set of infectious individuals that interacted with $i$ in the time interval $[t, t + 1)$. The functions $\Omega_{S}(i)$ and $\Omega_{T}(j)$ represent risk factors associated with susceptible individual $i$ contracting, and infectious individual $j$ passing on, the disease, respectively. Risk factors that involve both the infected and susceptible individuals, such as spatial separation or contact networks, are incorporated through the (time-dependent) infection kernel, $\kappa(i, j, t)$. Finally, the sparks term, $\epsilon(i, t)$, represents infections that are not well explained by the $\Omega_{S}(i)$, $\Omega_{T}(j)$, and $\kappa(i, j)$) terms (e.g., infections originating from outside the study population). For example, $\epsilon(i, t)=\epsilon$ could be used to represent purely random infections that occur with equal probability throughout the susceptible population at any given time.
+In this expression, the set of infectious individuals who interacted with susceptible $i$ in the time interval $[t, t + 1)$ is denoted as $C(i, t)$. Following the notation in \cite{Deardon2010}, the risk factors of a susceptible individual $i$ becoming infected, and an infected individual $j$ transmitting the disease are represented by the functions $\Omega_{S}(i)$ and $\Omega_{T}(j)$, respectively. The time-dependent infection kernel, $\kappa(i, j, t)$, incorporates pairwise risk factors, such as the occurrence and duration of contacts between $i$ and $j$. The "sparks" term, $\epsilon(i, t)$, can be used to represent other sources of infection, such as zoonotic introductions at a given rate.
 
-This formula is the result of assuming a Poisson infectious process in each time interval $[t, t + 1)$. We count the number $k$ of transmission events between susceptible $i$ and infected $j$, which follow a Poisson distribution $f\left( k \right) = \frac{{e^{ - \lambda } \lambda ^k }}{{k!}}$ with $\lambda$ the rate of transmission. Non-infection from $j$ corresponds to $k=0$, so then $f(k=0)=e^{ - \lambda }$. The rate of transmission from $j$ to $i$ is modeled as the product form  $\lambda_{i,j}=\Omega_{S}(i)\Omega_{T}(j) \kappa(i, j)$. Non-infection of $i$ from all infected $j$ follows from independence between these Poisson processes, therefore (ignoring the sparks term):
+This formula is the result of assuming a Poisson infectious process in each time interval $[t, t + 1)$. We count the number $k$ of transmission events between susceptible $i$ and infected $j$, which follow a Poisson distribution $f\left( k \right) = \frac{{e^{ - \lambda } \lambda ^k }}{{k!}}$ with $\lambda$ the rate of transmission. Non-infection from $j$ corresponds to $k=0$, so then $f(k=0)=e^{ - \lambda }$. The rate of transmission from $j$ to $i$ is modeled as the product form $\lambda_{i,j}=\Omega_{S}(i)\Omega_{T}(j) \kappa(i, j)$. Non-infection of $i$ from all infected $j$ follows from independence between these Poisson processes, therefore (ignoring the sparks term):
 
 \begin{center}
 $1-P(i, t)= \prod\limits_{j}e^{ - \lambda_{i,j} }$
 \end{center}
 
-Formally, the ILMs can be extended to incorporate the effect of spatially varying risk factors upon the transmission of infectious disease. The resulting GD-ILMs have the general form \cite{Mahsin2020}:
+Formally, the ILMs can be extended to incorporate the effect of spatial-dependent risk factors upon the transmission of infectious disease. The resulting GD-ILMs have the general form \cite{Mahsin2020}:
 
 \begin{equation}
 P(i, k, t)=1-\exp\big[ \big( -\Omega_{S}(i, k) \sum\limits_{j \in C(i, t)} \Omega_{T}(j, k) \kappa(i, j, t)\big) - \epsilon(i, k, t)\big]
 \end{equation}
 
-where $k$ represents the area index which varies from $1$ to $K$. Here, $\Omega_{S}(i, k)$ is a susceptibility function of potential risk factors associated with susceptible individual $i$ in area $k$ contracting the disease; $\Omega_{T}(j, k)$ is a transmissibility function of potential risk factors associated with infectious individual $j$ in area $k$ passing on the disease; $\kappa(i, j, t)$ is the infection kernel that represents risk factors associated with both susceptible $i$ and infectious $j$ individuals at time $t$ (assumed to be independent of area $k$); and the sparks term, $\epsilon(i, k, t)$, represents “random” infections that are not otherwise explained by the model. However, in the context of this manuscript we will only consider simple ILM without explicit geographical dependencies.
+where each function is now a function of an area index $k$ ranging over the geographical subdivisions under consideration. However, in the context of this manuscript we will only consider simple ILM without explicit geographical dependencies.
 
 \subsection{Model Covariates}
 
-The aforementioned susceptibility and transmissibility functions, $\Omega_{S}(i)$ and $\Omega_{T}(j)$, respectively, can be used to model individual-level covariates. We may wish to identify the vulnerable age groups and gender along with the estimation of vaccination effect in the susceptibility function. We propose a general susceptibility function as follows:
+The functions introduced in the previous section, $\Omega_{S}(i)$ and $\Omega_{T}(j)$ are general and can incorporate covariates that determine susceptibility and transmissibility risks through various functional dependencies. We can start by considering a linear form:
 
 \begin{equation}
 \Omega_{S}(i)=a_{0} + a_{1} X_{1}(i) + ... + a_{N} X_{N}(i)
